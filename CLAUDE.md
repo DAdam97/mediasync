@@ -4,7 +4,10 @@
 
 A personal media sync system that saves mobile data. The user collects YouTube / YouTube Music links on their phone, sends them to a Raspberry Pi 4 home server, which downloads the media, processes it with AI (genre/mood tagging), and automatically syncs it back to the phone over WiFi. Music playback is handled by Poweramp via .m3u playlist files.
 
-**Current status:** Planning phase — no code yet. Restarting with structured workflow: grill-me → PRD → issues → kanban → implementation.
+**Current status:** Planning complete. GitHub repo live, 11 issues created, kanban board set up. Next: Issue #1 — Pi infrastructure setup.
+
+**GitHub:** https://github.com/DAdam97/mediasync
+**Kanban board:** https://github.com/users/DAdam97/projects/1
 
 ---
 
@@ -392,74 +395,19 @@ volumes:
 
 ---
 
-## Development Schedule (8 weeks)
+## Issue Tracker
 
-### Priorities (if time runs short)
-- **MUST HAVE (minimum for grade):** Link submission → download → sync → Poweramp playback + basic library UI
-- **SHOULD HAVE:** Genre/mood ML tagging + automatic playlist generation
-- **NICE TO HAVE:** ML-based playlist recommendations (cosine similarity), polished UI
+Tasks are tracked as GitHub Issues + kanban board. See `wiki/progress/issues.md` for the full list with dependencies.
 
-### Week 1 — Foundation 
-- [ ] Create git repo, .gitignore, README
-- [ ] Docker + docker-compose setup on Pi
-- [ ] FastAPI skeleton: health endpoint, CORS, project structure
-- [ ] SQLite schema initialization
-- [ ] GitHub Actions CI pipeline (Ruff lint + mypy + pytest)
-- [ ] First ADRs (tech stack decisions)
-- [ ] Architecture diagram (Mermaid)
+**Priority order (3-4 weeks remaining):**
+1. #1 Pi infrastructure (Docker, Tailscale, VS Code SSH) — HITL
+2. #2 DB + FastAPI skeleton
+3. #3 Download pipeline (single track)
+4. #4 Playlist URL expansion + #5 Web UI + #6 Library UI (parallel)
+5. #7 ML pipeline (HITL: dataset + Colab) + #11 Syncthing setup (parallel)
+6. #8 Mood inference → #9 Playlist generation → #10 Web UI playlists
 
-### Week 2 — Download Engine 
-- [ ] yt-dlp wrapper service (single track + playlist)
-- [ ] URL validation (YouTube / YouTube Music only)
-- [ ] MusicBrainz API call for supplementary metadata (best-effort)
-- [ ] Download queue management (async background tasks)
-- [ ] `/api/downloads` CRUD endpoints
-- [ ] Tests for download logic
-
-### Week 3 — Library Management
-- [ ] File organization logic (music/ folder structure)
-- [ ] Metadata extraction + ID3 tag writing (mutagen)
-- [ ] `/api/library` endpoints (listing, filtering, search)
-- [ ] Storage monitoring (`/api/stats`)
-- [ ] Tests
-
-### Week 4 — Android MVP + Syncthing 
-- [ ] Android project setup (Kotlin, Gradle)
-- [ ] Retrofit API client (`MediaSyncApi.kt`)
-- [ ] Link submission screen (+ Share Intent receiver)
-- [ ] Download queue display
-- [ ] Syncthing configuration (Pi: send-only, phone: receive-only)
-- [ ] WorkManager-based WiFi detection
-- **➡️ DEMO-READY MVP: link submit → download → sync → Poweramp playback**
-
-### Week 5 — Android Features
-- [ ] Library browser screen (filters, search)
-- [ ] Playlist manager UI (manual creation, editing)
-- [ ] Poweramp integration (open .m3u via Intent)
-- [ ] Basic UI polish
-
-### Week 6 — AI Pipeline 
-- [ ] librosa feature extraction service
-- [ ] Custom dataset: user-defined genre categories, 50-100 tracks/genre, 30-sec clips (Option B — no GTZAN)
-- [ ] Keras model training in Colab (genre + mood)
-- [ ] TF Lite conversion + deployment to Pi
-- [ ] Classifier service (inference)
-- [ ] Automatic playlist generation
-- [ ] Playlist generation UI in Android app
-
-### Week 7 — Testing & Documentation
-- [ ] Backend unit test completion (target: >80% coverage)
-- [ ] Android UI tests (Espresso)
-- [ ] Performance benchmarks (classifier accuracy, sync time)
-- [ ] Write project documentation (architecture, implementation, testing)
-- [ ] Finalize UML diagrams
-
-### Week 8 — Wrap Up
-- [ ] Finalize project documentation
-- [ ] Prepare presentation slides
-- [ ] Demo rehearsal (live demo practice)
-- [ ] Code cleanup, finalize README
-- [ ] Last bugfixes
+**Demo minimum:** #1 + #2 + #3 + #5 + #6 + #7 + #8 + #9 + #10 + #11
 
 ---
 
@@ -512,18 +460,18 @@ volumes:
 - Keep services modular — each service in its own file under `services/`
 
 ### Android Specific
-- Poweramp integration: generate `.m3u` files + open via Intent
-- Do NOT build a custom music player — Poweramp handles playback
-- WiFi-only sync: WorkManager `NetworkType.UNMETERED` constraint
-- Share Intent: allow sending links directly from other apps
+- Android app is OUT OF SCOPE for the demo — deferred to after deadline
+- Phone playback handled by Syncthing-Fork (receive-only) + Poweramp
+- Do NOT build a custom music player
 
 ### ML Specific
-- Training: Google Colab (GPU) — Keras Sequential or 1D CNN
+- Training: Google Colab (GPU) — Keras Sequential model
 - Deploy: TF Lite conversion (`tf.lite.TFLiteConverter`)
-- On Pi: `tflite-runtime` — lightweight inference only
-- Audio features: librosa MFCC, mel spectrogram, spectral features
-- Dataset: CUSTOM-BUILT ONLY — user-defined genre categories, 50-100 tracks per genre, 30-sec clips. No GTZAN (poor Hungarian music coverage). Genre/mood tags come 100% from audio ML — no external source is reliable for this.
-- MusicBrainz: best-effort supplementary metadata only, never block the pipeline on it
+- On Pi: `tflite-runtime` — lightweight inference only (NOT full tensorflow)
+- Audio features: librosa MFCC (20 coefficients), spectral centroid, rolloff, ZCR, chroma, tempo, energy
+- Dataset: CUSTOM-BUILT — 4 mood categories × ~25-30 tracks. No GTZAN. No external genre/mood source.
+- Mood categories: energetic, chill, sad, intense
+- MusicBrainz: REMOVED from scope entirely
 
 ---
 
@@ -532,8 +480,8 @@ volumes:
 | Service | Purpose | API Key? |
 |---|---|---|
 | YouTube (yt-dlp) | Audio download (YouTube + YouTube Music) | No (but rate limited) |
-| MusicBrainz | Supplementary metadata (best-effort) | No (open database) |
-| Last.fm | Genre tags, similar artists (optional enrichment) | Yes (free API key) |
+
+MusicBrainz and Last.fm removed from scope — yt-dlp metadata is sufficient.
 
 ---
 
@@ -554,20 +502,20 @@ All wiki pages are written in English.
 
 ```
 wiki/
-├── index.md              ← list of all pages with one-line descriptions (always read this first)
-├── log.md                ← append-only chronological log of all work done
+├── index.md              ← list of all pages (always read this first)
+├── log.md                ← append-only chronological log (read last 5 entries each session)
 ├── concepts/
 │   ├── architecture.md   ← system overview, components, data flow
-│   ├── yt-dlp.md         ← how yt-dlp is used, known limitations
+│   ├── yt-dlp.md         ← how yt-dlp is used, Deno requirement, limitations
 │   ├── tflite.md         ← ML pipeline, TF Lite inference on Pi
 │   └── syncthing.md      ← file sync setup and configuration
 ├── decisions/
-│   ├── web-ui-over-android.md
-│   ├── tailscale-networking.md
-│   └── mood-only-ml.md
+│   ├── web-ui-over-android.md  ← why web UI replaced Android app for demo
+│   ├── tailscale-networking.md ← why Tailscale for remote Pi access
+│   └── mood-only-ml.md         ← why mood-only classification (no genre)
 └── progress/
-    ├── week1.md
-    └── week2.md
+    ├── planning.md       ← decisions from initial grill-me + PRD session
+    └── issues.md         ← all GitHub issues with status + dependency graph
 ```
 
 ### Development workflow
