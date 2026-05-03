@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Environment
+.env
+.env.*
+
+# Database (runtime data — not committed)
+*.db
+*.sqlite
+
+# Media files (large binaries — stored on USB SSD, not in git)
+backend/media/
+/mnt/
+
+# TF Lite models (committed explicitly when ready)
+# backend/models/*.tflite  ← intentionally NOT ignored
+
+# ML training data (too large for git)
+ml/data/
+ml/*.csv
+ml/*.npy
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+.dockerignore
+
+# Logs
+*.log
