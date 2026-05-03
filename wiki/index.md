@@ -24,3 +24,4 @@ All pages in the MediaSync wiki. Read this file first at the start of every sess
 | Page | Summary |
 |---|---|
 | [Planning Phase](progress/planning.md) | Decisions made in the initial grill-me + PRD session |
+| [Issues](progress/issues.md) | All GitHub issues with status and dependencies |
