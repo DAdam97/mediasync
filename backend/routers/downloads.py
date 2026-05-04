@@ -121,7 +121,8 @@ async def retry_interrupted_downloads() -> None:
     rows: list[tuple] = []
     async with aiosqlite.connect(db_path()) as db:
         async with db.execute(
-            "SELECT id, url FROM downloads WHERE status IN ('downloading', 'processing')"
+            "SELECT id, url FROM downloads"
+            " WHERE status IN ('downloading', 'processing')"
         ) as cur:
             rows = await cur.fetchall()
         if rows:
