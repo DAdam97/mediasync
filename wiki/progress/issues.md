@@ -16,7 +16,7 @@ Update the Status column and `updated` date whenever an issue is closed.
 | # | Title | Type | Status | Blocked by |
 |---|---|---|---|---|
 | [#1](https://github.com/DAdam97/mediasync/issues/1) | Pi infrastructure setup | HITL | open | — |
-| [#2](https://github.com/DAdam97/mediasync/issues/2) | Database schema + FastAPI skeleton + health endpoint | AFK | open | #1 |
+| [#2](https://github.com/DAdam97/mediasync/issues/2) | Database schema + FastAPI skeleton + health endpoint | AFK | done | #1 |
 | [#3](https://github.com/DAdam97/mediasync/issues/3) | Download pipeline: single track (yt-dlp → MP3 → ID3 tags → DB) | AFK | open | #2 |
 | [#4](https://github.com/DAdam97/mediasync/issues/4) | Download pipeline: YouTube playlist URL expansion | AFK | open | #3 |
 | [#5](https://github.com/DAdam97/mediasync/issues/5) | Web UI: link submission + download queue view | AFK | open | #3 |
@@ -71,13 +71,13 @@ Update the Status column and `updated` date whenever an issue is closed.
 **What to build:** Bootstrap the backend: SQLite schema initialisation, FastAPI app wired up, `/api/health` and `/api/stats` endpoints returning real data. End-to-end: `docker-compose up` starts the API container, browser hits `http://pi:8000/api/health` and gets a JSON response, `/docs` Swagger UI is accessible.
 
 **Acceptance criteria:**
-- [ ] `docker-compose.yml` defines the `api` service (and `syncthing` stub)
-- [ ] `database.py` creates all five tables on startup (`downloads`, `media`, `audio_features`, `playlists`, `playlist_items`)
-- [ ] `GET /api/health` returns `{"status": "ok"}`
-- [ ] `GET /api/stats` returns storage usage and download counts (even if zero)
-- [ ] FastAPI serves `static/index.html` as a placeholder page
-- [ ] `requirements.txt` and `Dockerfile` are complete
-- [ ] Ruff + mypy pass in CI (GitHub Actions workflow created)
+- [x] `docker-compose.yml` defines the `api` service (and `syncthing` stub)
+- [x] `database.py` creates all five tables on startup (`downloads`, `media`, `audio_features`, `playlists`, `playlist_items`)
+- [x] `GET /api/health` returns `{"status": "ok"}`
+- [x] `GET /api/stats` returns storage usage and download counts (even if zero)
+- [x] FastAPI serves `static/index.html` as a placeholder page
+- [x] `requirements.txt` and `Dockerfile` are complete
+- [x] Ruff + mypy pass in CI (GitHub Actions workflow created)
 
 ---
 
