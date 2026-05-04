@@ -2,6 +2,12 @@
 
 All pages in the MediaSync wiki. Read this file first at the start of every session.
 
+## Process
+
+| Page | Summary |
+|---|---|
+| [Implementation Guidelines](implementation-guidelines.md) | Definition of Done, recurring gotchas, manual test checklist — read every session |
+
 ## Concepts
 
 | Page | Summary |
