@@ -64,8 +64,8 @@ async def run_download(download_id: int, url: str, media_path: str) -> dict[str,
     stat = os.stat(file_path)
     relative_path = str(Path(file_path).relative_to(media_path))
 
-    from mutagen.easyid3 import EasyID3  # type: ignore[import-not-found]
-    from mutagen.mp3 import MP3  # type: ignore[import-not-found]
+    from mutagen.easyid3 import EasyID3
+    from mutagen.mp3 import MP3
 
     title = ""
     artist = ""
