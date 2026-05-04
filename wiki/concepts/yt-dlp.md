@@ -2,7 +2,7 @@
 title: yt-dlp
 type: concept
 related: [architecture.md]
-updated: 2026-05-01
+updated: 2026-05-04
 ---
 
 # yt-dlp
@@ -47,8 +47,15 @@ YouTube Music "topic" channels (e.g. `Artist - Topic`) have clean, structured me
 
 yt-dlp downloads the best available audio stream. For YouTube Music this is typically `opus` in a `.webm` container. ffmpeg converts it to `.mp3` after download.
 
+## Discovery Mode
+
+The `discovery` mode uses YouTube's auto-generated Mix playlist to find related tracks. When given a video URL `?v=VIDEO_ID`, yt-dlp fetches the Mix at `?v=VIDEO_ID&list=RDVIDEO_ID` using `--flat-playlist --print url`. This requires no API key. The `limit` parameter controls how many tracks are returned (default 10).
+
+Implementation: `services/downloader.py::fetch_related_urls`
+
 ## Known Limitations
 
 - Rate limiting: YouTube may throttle requests if too many downloads happen in quick succession. No retry logic needed for a single-user system, but worth noting.
 - Age-restricted or unavailable videos will fail — the error is caught and stored in `downloads.error_message`.
 - Playlist downloads: each track in a playlist becomes a separate `downloads` record.
+- `--print after_move:filepath` requires a recent yt-dlp version (2023+). The Dockerfile must install the latest yt-dlp.

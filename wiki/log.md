@@ -6,6 +6,13 @@ Types: `feat` | `fix` | `decision` | `progress` | `note`
 
 ---
 
+## [2026-05-04] feat | Download pipeline: single track + discovery mode (#3)
+
+`POST /api/downloads` with URL validation (422 for non-YouTube), background asyncio task handling
+`pending→downloading→processing→done` state machine, error_message on failure, media record on success.
+`mode=discovery` queues N related tracks via YouTube Mix playlist (yt-dlp `--flat-playlist`).
+`GET /api/downloads`, `GET /api/downloads/{id}`, `GET /api/library` added. 16 tests, all green.
+
 ## [2026-05-05] feat | DB schema + FastAPI skeleton + health endpoint (#2)
 
 Backend scaffolded: requirements.txt, Dockerfile, docker-compose.yml, database.py (5 tables), main.py with /api/health and /api/stats endpoints, static/index.html placeholder UI, GitHub Actions CI workflow. TDD: 2 tests green (health + stats shape). Ruff passes. Mypy slow on first Pi run (stubs cache) — will pass in CI.

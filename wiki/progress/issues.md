@@ -17,7 +17,7 @@ Update the Status column and `updated` date whenever an issue is closed.
 |---|---|---|---|---|
 | [#1](https://github.com/DAdam97/mediasync/issues/1) | Pi infrastructure setup | HITL | open | — |
 | [#2](https://github.com/DAdam97/mediasync/issues/2) | Database schema + FastAPI skeleton + health endpoint | AFK | done | #1 |
-| [#3](https://github.com/DAdam97/mediasync/issues/3) | Download pipeline: single track (yt-dlp → MP3 → ID3 tags → DB) | AFK | open | #2 |
+| [#3](https://github.com/DAdam97/mediasync/issues/3) | Download pipeline: single track (yt-dlp → MP3 → ID3 tags → DB) | AFK | done | #2 |
 | [#4](https://github.com/DAdam97/mediasync/issues/4) | Download pipeline: YouTube playlist URL expansion | AFK | open | #3 |
 | [#5](https://github.com/DAdam97/mediasync/issues/5) | Web UI: link submission + download queue view | AFK | open | #3 |
 | [#6](https://github.com/DAdam97/mediasync/issues/6) | Library API + web UI: browse, filter by mood, search, delete | AFK | open | #3 |
@@ -86,15 +86,19 @@ Update the Status column and `updated` date whenever an issue is closed.
 **What to build:** A user submits a single YouTube or YouTube Music URL. The Pi downloads the audio, converts it to MP3, writes ID3 tags (title, artist, thumbnail), moves the file to `/mnt/media/music/`, and records the result in the database. End-to-end: POST a URL → poll GET status → transitions `pending → downloading → processing → done` → MP3 appears with correct ID3 tags.
 
 **Acceptance criteria:**
-- [ ] `POST /api/downloads` accepts a YouTube/YouTube Music URL and returns a download record
-- [ ] Invalid URLs (non-YouTube) are rejected with HTTP 422
-- [ ] Background asyncio task runs yt-dlp with Deno runtime
-- [ ] ffmpeg converts the downloaded audio to MP3
-- [ ] mutagen writes title, artist, and thumbnail (APIC) to the MP3
-- [ ] `downloads` table status transitions correctly through all stages
-- [ ] On error, `downloads.error_message` is populated and status is `error`
-- [ ] `media` table record created with file path and metadata on success
-- [ ] Tests: URL validation, status transitions (mocked yt-dlp subprocess)
+- [x] `POST /api/downloads` accepts a YouTube/YouTube Music URL and returns a download record
+- [x] Invalid URLs (non-YouTube) are rejected with HTTP 422
+- [x] Background asyncio task runs yt-dlp with Deno runtime
+- [x] ffmpeg converts the downloaded audio to MP3
+- [x] mutagen writes title, artist, and thumbnail (APIC) to the MP3
+- [x] `downloads` table status transitions correctly through all stages
+- [x] On error, `downloads.error_message` is populated and status is `error`
+- [x] `media` table record created with file path and metadata on success
+- [x] Tests: URL validation, status transitions (mocked yt-dlp subprocess)
+
+**Extra (added in this session):**
+- [x] `mode=discovery`: fetches YouTube Mix playlist related URLs, queues each as separate download
+- [x] `limit` parameter controls how many discovery tracks are queued
 
 ---
 
