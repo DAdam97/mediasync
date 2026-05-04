@@ -1,3 +1,4 @@
+import asyncio
 import os
 import re
 from typing import Annotated
@@ -15,8 +16,11 @@ DB = Annotated[aiosqlite.Connection, Depends(get_db)]
 
 _YOUTUBE_PATTERN = re.compile(
     r"^https?://(www\.)?(youtube\.com/watch\?.*v=|youtu\.be/"
-    r"|music\.youtube\.com/watch\?.*v=|youtube\.com/playlist\?.*list=)"
+    r"|music\.youtube\.com/watch\?.*v=|youtube\.com/playlist\?.*list="
+    r"|music\.youtube\.com/playlist\?.*list=)"
 )
+
+_download_semaphore = asyncio.Semaphore(1)
 
 _SELECT_COLS = "SELECT id, url, status, type, source, error_message FROM downloads"
 
@@ -58,49 +62,67 @@ class DownloadRecord(BaseModel):
 
 async def _process_download(download_id: int, url: str) -> None:
     media_path = os.getenv("MEDIA_PATH", "/mnt/media")
+    async with _download_semaphore:
+        async with aiosqlite.connect(db_path()) as db:
+            await db.execute(
+                "UPDATE downloads SET status='downloading',"
+                " updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                (download_id,),
+            )
+            await db.commit()
+            try:
+                result = await downloader.run_download(download_id, url, media_path)
+
+                await db.execute(
+                    "UPDATE downloads SET status='processing',"
+                    " updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                    (download_id,),
+                )
+                await db.commit()
+
+                await db.execute(
+                    _INSERT_MEDIA,
+                    (
+                        result["title"],
+                        result["artist"],
+                        result["file_path"],
+                        result["file_size_bytes"],
+                        result["duration_seconds"],
+                        url,
+                        download_id,
+                    ),
+                )
+                await db.execute(
+                    "UPDATE downloads SET status='done',"
+                    " updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                    (download_id,),
+                )
+                await db.commit()
+
+            except Exception as e:
+                await db.execute(
+                    "UPDATE downloads SET status='error', error_message=?,"
+                    " updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                    (str(e), download_id),
+                )
+                await db.commit()
+
+
+async def retry_interrupted_downloads() -> None:
+    rows: list[tuple] = []
     async with aiosqlite.connect(db_path()) as db:
-        await db.execute(
-            "UPDATE downloads SET status='downloading',"
-            " updated_at=CURRENT_TIMESTAMP WHERE id=?",
-            (download_id,),
-        )
-        await db.commit()
-        try:
-            result = await downloader.run_download(download_id, url, media_path)
-
+        async with db.execute(
+            "SELECT id, url FROM downloads WHERE status IN ('downloading', 'processing')"
+        ) as cur:
+            rows = await cur.fetchall()
+        if rows:
             await db.execute(
-                "UPDATE downloads SET status='processing',"
-                " updated_at=CURRENT_TIMESTAMP WHERE id=?",
-                (download_id,),
+                "UPDATE downloads SET status='pending', updated_at=CURRENT_TIMESTAMP"
+                " WHERE status IN ('downloading', 'processing')"
             )
             await db.commit()
-
-            await db.execute(
-                _INSERT_MEDIA,
-                (
-                    result["title"],
-                    result["artist"],
-                    result["file_path"],
-                    result["file_size_bytes"],
-                    result["duration_seconds"],
-                    url,
-                    download_id,
-                ),
-            )
-            await db.execute(
-                "UPDATE downloads SET status='done',"
-                " updated_at=CURRENT_TIMESTAMP WHERE id=?",
-                (download_id,),
-            )
-            await db.commit()
-
-        except Exception as e:
-            await db.execute(
-                "UPDATE downloads SET status='error', error_message=?,"
-                " updated_at=CURRENT_TIMESTAMP WHERE id=?",
-                (str(e), download_id),
-            )
-            await db.commit()
+    for download_id, url in rows:
+        asyncio.create_task(_process_download(download_id, url))
 
 
 @router.get("", response_model=list[DownloadRecord])
@@ -141,7 +163,8 @@ async def create_download(
     source = _source_from_url(req.url)
 
     if req.mode == "discovery":
-        urls = (await downloader.fetch_related_urls(req.url, req.limit))[: req.limit]
+        all_urls = await downloader.fetch_related_urls(req.url, req.limit)
+        urls = [u for u in all_urls if _is_valid_youtube_url(u)][: req.limit]
         records = []
         for url in urls:
             async with db.execute(

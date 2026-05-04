@@ -15,6 +15,7 @@ from routers import downloads, library
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await init_db()
+    await downloads.retry_interrupted_downloads()
     yield
 
 
