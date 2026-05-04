@@ -135,6 +135,112 @@
 
     .stat-card .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
     .stat-card .value { font-size: 28px; font-weight: 700; margin-top: 4px; }
+
+    /* Download cards */
+    #queue-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    #queue-list .empty {
+      grid-column: 1 / -1;
+    }
+    .download-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      min-width: 0;
+    }
+    .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .card-artist {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .card-url {
+      font-size: 11px;
+      color: var(--muted);
+      word-break: break-all;
+      margin-bottom: 4px;
+    }
+    .card-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .card-status {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+    .card-duration {
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .card-error {
+      font-size: 12px;
+      color: var(--red);
+      margin-top: 6px;
+    }
+    .form-error {
+      color: var(--red);
+      font-size: 13px;
+      margin-top: 8px;
+      min-height: 18px;
+    }
+    #submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    /* Mode selector */
+    .mode-selector {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .mode-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 6px 14px;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .mode-btn:hover:not(:disabled) { color: var(--text); border-color: var(--accent); }
+    .mode-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .mode-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    .discovery-options {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .discovery-options.visible { display: flex; }
+    .discovery-options input[type="number"] {
+      width: 64px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 4px 8px;
+      font-size: 13px;
+      text-align: center;
+      outline: none;
+    }
+    .discovery-options input[type="number"]:focus { border-color: var(--accent); }
   </style>
 </head>
 <body>
@@ -158,6 +264,16 @@
       <input id="url-input" type="url" placeholder="YouTube / YouTube Music URL…" />
       <button id="submit-btn">Download</button>
     </div>
+    <div class="mode-selector">
+      <button class="mode-btn active" data-mode="track">Track</button>
+      <button class="mode-btn" data-mode="discovery">Discovery</button>
+      <button class="mode-btn" data-mode="playlist" disabled title="Coming soon — requires playlist URL expansion (#4)">Playlist</button>
+    </div>
+    <div class="discovery-options" id="discovery-options">
+      <span>Tracks to discover:</span>
+      <input id="discovery-limit" type="number" min="1" max="50" value="10" />
+    </div>
+    <div id="form-error" class="form-error"></div>
     <div id="queue-list">
       <div class="empty">No downloads yet — paste a URL above.</div>
     </div>
@@ -223,18 +339,146 @@
       document.getElementById("stat-done").textContent = data.downloads_by_status.done ?? 0;
       const mb = (data.storage_used_bytes / 1024 / 1024).toFixed(1);
       document.getElementById("stat-storage").textContent = mb + " MB";
+    } catch { /* server unreachable */ }
+  }
+
+  // Mode selector
+  let _selectedMode = "track";
+  const _discoveryOptions = document.getElementById("discovery-options");
+  document.querySelectorAll(".mode-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".mode-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      _selectedMode = btn.dataset.mode;
+      _discoveryOptions.classList.toggle("visible", _selectedMode === "discovery");
+    });
+  });
+
+  // Download queue
+  const STATUS_COLOR = {
+    pending: "var(--yellow)",
+    downloading: "var(--accent)",
+    processing: "var(--accent)",
+    done: "var(--green)",
+    error: "var(--red)",
+  };
+
+  let _pollTimer = null;
+
+  function _esc(s) {
+    return String(s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  function _hasActive(records) {
+    return records.some(r => ["pending", "downloading", "processing"].includes(r.status));
+  }
+
+  function _startPolling() {
+    if (_pollTimer) return;
+    _pollTimer = setInterval(refreshQueue, 3000);
+  }
+
+  function _stopPolling() {
+    clearInterval(_pollTimer);
+    _pollTimer = null;
+  }
+
+  function _fmtDuration(secs) {
+    if (!secs) return "";
+    const m = Math.floor(secs / 60), s = secs % 60;
+    return `${m}:${String(s).padStart(2, "0")}`;
+  }
+
+  function _renderQueue(records) {
+    const list = document.getElementById("queue-list");
+    if (!records.length) {
+      list.innerHTML = '<div class="empty">No downloads yet — paste a URL above.</div>';
+      return;
+    }
+    const sorted = [...records].sort((a, b) => b.id - a.id);
+    list.innerHTML = "";
+    sorted.forEach(r => {
+      const div = document.createElement("div");
+      div.className = "download-card";
+      const color = STATUS_COLOR[r.status] || "var(--muted)";
+      const dur = _fmtDuration(r.duration_seconds);
+      let inner = "";
+      if (r.title) {
+        inner += `<div class="card-title">${_esc(r.title)}</div>`;
+        inner += `<div class="card-artist">${_esc(r.artist || "Unknown artist")}</div>`;
+      } else {
+        const short = r.url.length > 70 ? r.url.slice(0, 67) + "…" : r.url;
+        inner += `<div class="card-url">${_esc(short)}</div>`;
+      }
+      inner += `<div class="card-meta">`;
+      inner += `<span class="card-status" style="color:${color}">${r.status}</span>`;
+      if (dur) inner += `<span class="card-duration">${dur}</span>`;
+      inner += `</div>`;
+      if (r.error_message) inner += `<div class="card-error">${_esc(r.error_message)}</div>`;
+      div.innerHTML = inner;
+      list.appendChild(div);
+    });
+  }
+
+  async function refreshQueue() {
+    try {
+      const records = await fetch("/api/downloads").then(r => r.json());
+      _renderQueue(records);
+      if (_hasActive(records)) _startPolling(); else _stopPolling();
+    } catch { /* server unreachable */ }
+  }
+
+  function _setFormError(msg) {
+    document.getElementById("form-error").textContent = msg;
+  }
+
+  async function submitDownload() {
+    const input = document.getElementById("url-input");
+    const url = input.value.trim();
+    if (!url) return;
+    _setFormError("");
+    const btn = document.getElementById("submit-btn");
+    btn.disabled = true;
+    try {
+      const res = await fetch("/api/downloads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url,
+          mode: _selectedMode,
+          ..._selectedMode === "discovery" && {
+            limit: parseInt(document.getElementById("discovery-limit").value, 10) || 10,
+          },
+        }),
+      });
+      if (res.status === 422) {
+        const data = await res.json();
+        _setFormError(data.detail ?? "Invalid URL.");
+        return;
+      }
+      if (!res.ok) {
+        _setFormError("Server error. Try again.");
+        return;
+      }
+      input.value = "";
+      await refreshQueue();
     } catch {
-      // server unreachable — leave as —
+      _setFormError("Could not reach server.");
+    } finally {
+      btn.disabled = false;
     }
   }
 
-  // Submit placeholder (wired up in #5)
-  document.getElementById("submit-btn").addEventListener("click", () => {
-    alert("Download submission coming in the next update.");
+  document.getElementById("submit-btn").addEventListener("click", submitDownload);
+  document.getElementById("url-input").addEventListener("keydown", e => {
+    if (e.key === "Enter") submitDownload();
   });
 
   checkHealth();
   setInterval(checkHealth, 10000);
+  refreshQueue();
 </script>
 </body>
 </html>

@@ -6,6 +6,10 @@ Types: `feat` | `fix` | `decision` | `progress` | `note`
 
 ---
 
+## [2026-05-04] feat | Web UI: link submission + download queue (#5)
+
+`static/index.html` fully wired: submit button calls `POST /api/downloads`, queue renders on load from `GET /api/downloads`, smart polling (3s interval, stops when no active downloads, restarts on next submit), form-level error display (422 invalid URL, network error), status badges colour-coded (yellow/blue/green/red), Enter key submits. All 16 backend tests still pass.
+
 ## [2026-05-04] feat | Download pipeline: single track + discovery mode (#3)
 
 `POST /api/downloads` with URL validation (422 for non-YouTube), background asyncio task handling

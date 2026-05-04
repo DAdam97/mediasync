@@ -19,7 +19,7 @@ Update the Status column and `updated` date whenever an issue is closed.
 | [#2](https://github.com/DAdam97/mediasync/issues/2) | Database schema + FastAPI skeleton + health endpoint | AFK | done | #1 |
 | [#3](https://github.com/DAdam97/mediasync/issues/3) | Download pipeline: single track (yt-dlp → MP3 → ID3 tags → DB) | AFK | done | #2 |
 | [#4](https://github.com/DAdam97/mediasync/issues/4) | Download pipeline: YouTube playlist URL expansion | AFK | open | #3 |
-| [#5](https://github.com/DAdam97/mediasync/issues/5) | Web UI: link submission + download queue view | AFK | open | #3 |
+| [#5](https://github.com/DAdam97/mediasync/issues/5) | Web UI: link submission + download queue view | AFK | done | #3 |
 | [#6](https://github.com/DAdam97/mediasync/issues/6) | Library API + web UI: browse, filter by mood, search, delete | AFK | open | #3 |
 | [#7](https://github.com/DAdam97/mediasync/issues/7) | ML pipeline: dataset collection + Colab training + TF Lite deployment | HITL | open | #3 |
 | [#8](https://github.com/DAdam97/mediasync/issues/8) | Mood classifier inference on Pi (async, post-download) | AFK | open | #7 |
@@ -121,13 +121,13 @@ Update the Status column and `updated` date whenever an issue is closed.
 **What to build:** The web UI lets a user paste a YouTube URL, submit it for download, and see the live status of all downloads. End-to-end: paste URL → click submit → download card appears → status updates from `pending` to `done` without page refresh.
 
 **Acceptance criteria:**
-- [ ] `static/index.html` has a URL input field and submit button
-- [ ] Submitting a URL calls `POST /api/downloads` and shows the new item in the queue
-- [ ] Queue view shows all downloads with their current status
-- [ ] Status updates automatically (polling every few seconds)
-- [ ] Error state is displayed clearly (invalid URL, download failed)
-- [ ] Playlist URLs show all expanded tracks in the queue
-- [ ] No JavaScript framework — vanilla JS + fetch API only
+- [x] `static/index.html` has a URL input field and submit button
+- [x] Submitting a URL calls `POST /api/downloads` and shows the new item in the queue
+- [x] Queue view shows all downloads with their current status
+- [x] Status updates automatically (smart polling: 3s interval, stops when idle, restarts on submit)
+- [x] Error state is displayed clearly (invalid URL → 422, download failed → error badge)
+- [x] Playlist URLs show all expanded tracks in the queue (list response rendered as multiple cards)
+- [x] No JavaScript framework — vanilla JS + fetch API only
 
 ---
 
