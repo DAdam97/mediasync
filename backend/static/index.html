@@ -429,7 +429,7 @@
       inner += `<span class="card-status" style="color:${color}">${r.status}</span>`;
       if (dur) inner += `<span class="card-duration">${dur}</span>`;
       inner += `</div>`;
-      if (r.error_message) {
+      if (r.status === "error" && r.error_message) {
         inner += `<div class="card-error">${_esc(r.error_message)}</div>`;
         inner += `<button class="retry-btn" onclick="retryDownload(${r.id})">Retry</button>`;
       }

@@ -109,7 +109,7 @@ async def _process_download(download_id: int, url: str) -> None:
                     ),
                 )
                 await db.execute(
-                    "UPDATE downloads SET status='done',"
+                    "UPDATE downloads SET status='done', error_message=NULL,"
                     " updated_at=CURRENT_TIMESTAMP WHERE id=?",
                     (download_id,),
                 )
@@ -133,7 +133,8 @@ async def retry_interrupted_downloads() -> None:
             rows = await cur.fetchall()
         if rows:
             await db.execute(
-                "UPDATE downloads SET status='pending', updated_at=CURRENT_TIMESTAMP"
+                "UPDATE downloads SET status='pending', error_message=NULL,"
+                " updated_at=CURRENT_TIMESTAMP"
                 " WHERE status IN ('downloading', 'processing', 'error')"
             )
             await db.commit()
