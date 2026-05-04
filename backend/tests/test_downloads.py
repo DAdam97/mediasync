@@ -167,6 +167,52 @@ def test_done_download_includes_media_metadata(client: TestClient) -> None:
     assert data["duration_seconds"] == 213
 
 
+def test_retry_resets_error_and_reruns(client: TestClient) -> None:
+    with patch(
+        "services.downloader.run_download",
+        new_callable=AsyncMock,
+        side_effect=RuntimeError("name resolution failed"),
+    ):
+        url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        download_id = client.post("/api/downloads", json={"url": url}).json()["id"]
+
+    assert client.get(f"/api/downloads/{download_id}").json()["status"] == "error"
+
+    mock_result = {
+        "title": "Track",
+        "artist": "Artist",
+        "file_path": "music/Artist - Track.mp3",
+        "file_size_bytes": 1_000_000,
+        "duration_seconds": 180,
+    }
+    with patch(
+        "services.downloader.run_download",
+        new_callable=AsyncMock,
+        return_value=mock_result,
+    ):
+        response = client.post(f"/api/downloads/{download_id}/retry")
+        assert response.status_code == 200
+        assert response.json()["status"] == "pending"
+        assert response.json()["error_message"] is None
+
+    data = client.get(f"/api/downloads/{download_id}").json()
+    assert data["status"] == "done"
+
+
+def test_retry_returns_404_for_non_error_download(client: TestClient) -> None:
+    url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    with patch("routers.downloads._process_download", _noop):
+        download_id = client.post("/api/downloads", json={"url": url}).json()["id"]
+
+    response = client.post(f"/api/downloads/{download_id}/retry")
+    assert response.status_code == 404
+
+
+def test_retry_returns_404_for_nonexistent_download(client: TestClient) -> None:
+    response = client.post("/api/downloads/99999/retry")
+    assert response.status_code == 404
+
+
 def test_download_task_transitions_to_done(client: TestClient) -> None:
     mock_result = {
         "title": "Never Gonna Give You Up",

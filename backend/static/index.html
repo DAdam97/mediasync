@@ -191,6 +191,19 @@
       color: var(--red);
       margin-top: 6px;
     }
+    .retry-btn {
+      margin-top: 6px;
+      background: none;
+      border: 1px solid var(--muted);
+      border-radius: var(--radius);
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 10px;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .retry-btn:hover { border-color: var(--text); color: var(--text); }
     .form-error {
       color: var(--red);
       font-size: 13px;
@@ -416,7 +429,10 @@
       inner += `<span class="card-status" style="color:${color}">${r.status}</span>`;
       if (dur) inner += `<span class="card-duration">${dur}</span>`;
       inner += `</div>`;
-      if (r.error_message) inner += `<div class="card-error">${_esc(r.error_message)}</div>`;
+      if (r.error_message) {
+        inner += `<div class="card-error">${_esc(r.error_message)}</div>`;
+        inner += `<button class="retry-btn" onclick="retryDownload(${r.id})">Retry</button>`;
+      }
       div.innerHTML = inner;
       list.appendChild(div);
     });
@@ -469,6 +485,13 @@
     } finally {
       btn.disabled = false;
     }
+  }
+
+  async function retryDownload(id) {
+    try {
+      const res = await fetch(`/api/downloads/${id}/retry`, { method: "POST" });
+      if (res.ok) { await refreshQueue(); _startPolling(); }
+    } catch { /* ignore */ }
   }
 
   document.getElementById("submit-btn").addEventListener("click", submitDownload);

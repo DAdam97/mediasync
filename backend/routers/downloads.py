@@ -128,17 +128,44 @@ async def retry_interrupted_downloads() -> None:
     async with aiosqlite.connect(db_path()) as db:
         async with db.execute(
             "SELECT id, url FROM downloads"
-            " WHERE status IN ('downloading', 'processing')"
+            " WHERE status IN ('downloading', 'processing', 'error')"
         ) as cur:
             rows = await cur.fetchall()
         if rows:
             await db.execute(
                 "UPDATE downloads SET status='pending', updated_at=CURRENT_TIMESTAMP"
-                " WHERE status IN ('downloading', 'processing')"
+                " WHERE status IN ('downloading', 'processing', 'error')"
             )
             await db.commit()
     for download_id, url in rows:
         asyncio.create_task(_process_download(download_id, url))
+
+
+@router.post("/{download_id}/retry", response_model=DownloadRecord)
+async def retry_download(
+    download_id: int, db: DB, background_tasks: BackgroundTasks
+) -> DownloadRecord:
+    async with db.execute(
+        "SELECT url FROM downloads WHERE id = ? AND status = 'error'",
+        (download_id,),
+    ) as cur:
+        row = await cur.fetchone()
+    if row is None:
+        raise HTTPException(
+            status_code=404, detail="Download not found or not in error state"
+        )
+    url = str(row[0])
+    await db.execute(
+        "UPDATE downloads SET status='pending', error_message=NULL,"
+        " updated_at=CURRENT_TIMESTAMP WHERE id=?",
+        (download_id,),
+    )
+    await db.commit()
+    background_tasks.add_task(_process_download, download_id, url)
+    async with db.execute(_SELECT_COLS + " WHERE d.id = ?", (download_id,)) as cur:
+        updated = await cur.fetchone()
+    assert updated is not None
+    return _row_to_record(updated)
 
 
 @router.get("", response_model=list[DownloadRecord])
