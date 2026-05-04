@@ -12,7 +12,11 @@ services:
     restart: unless-stopped
 
   syncthing:
-    image: syncthing/syncthing:latest
+    image: lscr.io/linuxserver/syncthing:latest
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Budapest
     ports:
       - "8384:8384"
       - "22000:22000"
