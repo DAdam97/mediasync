@@ -44,7 +44,7 @@ def _source_from_url(url: str) -> str:
     return "youtube"
 
 
-def _row_to_record(r: tuple) -> "DownloadRecord":
+def _row_to_record(r: aiosqlite.Row) -> "DownloadRecord":
     return DownloadRecord(
         id=r[0],
         url=r[1],
@@ -125,7 +125,6 @@ async def _process_download(download_id: int, url: str) -> None:
 
 
 async def retry_interrupted_downloads() -> None:
-    rows: list[tuple] = []
     async with aiosqlite.connect(db_path()) as db:
         async with db.execute(
             "SELECT id, url FROM downloads"
@@ -190,6 +189,7 @@ async def create_download(
                 (url, source),
             ) as cur:
                 row_id = cur.lastrowid
+            assert row_id is not None
             records.append(
                 DownloadRecord(
                     id=row_id,
@@ -208,6 +208,7 @@ async def create_download(
         (req.url, source, req.mode),
     ) as cur:
         row_id = cur.lastrowid
+    assert row_id is not None
     await db.commit()
 
     background_tasks.add_task(_process_download, row_id, req.url)

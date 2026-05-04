@@ -2,6 +2,7 @@ import asyncio
 import os
 import re
 from pathlib import Path
+from typing import Any
 
 _YOUTUBE_ID_RE = re.compile(r"[?&]v=([a-zA-Z0-9_-]{11})")
 
@@ -28,7 +29,7 @@ async def fetch_related_urls(url: str, limit: int) -> list[str]:
     return lines[:limit]
 
 
-async def run_download(download_id: int, url: str, media_path: str) -> dict:
+async def run_download(download_id: int, url: str, media_path: str) -> dict[str, Any]:
     music_dir = Path(media_path) / "music"
     music_dir.mkdir(parents=True, exist_ok=True)
 
@@ -63,8 +64,8 @@ async def run_download(download_id: int, url: str, media_path: str) -> dict:
     stat = os.stat(file_path)
     relative_path = str(Path(file_path).relative_to(media_path))
 
-    from mutagen.easyid3 import EasyID3
-    from mutagen.mp3 import MP3
+    from mutagen.easyid3 import EasyID3  # type: ignore[import-not-found]
+    from mutagen.mp3 import MP3  # type: ignore[import-not-found]
 
     title = ""
     artist = ""
