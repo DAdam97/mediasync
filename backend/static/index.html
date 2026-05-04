@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MediaSync</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --border: #2a2d3a;
+      --accent: #6c63ff;
+      --accent-hover: #574fd6;
+      --text: #e2e4ed;
+      --muted: #6b7094;
+      --green: #4ade80;
+      --red: #f87171;
+      --yellow: #fbbf24;
+      --radius: 8px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    header h1 { font-size: 18px; font-weight: 600; letter-spacing: 0.5px; }
+
+    #health-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--muted);
+      transition: background 0.3s;
+    }
+    #health-dot.ok  { background: var(--green); }
+    #health-dot.err { background: var(--red); }
+
+    nav {
+      display: flex;
+      gap: 4px;
+      padding: 12px 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    nav button {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 6px 14px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-weight: 500;
+      transition: background 0.15s, color 0.15s;
+    }
+    nav button:hover { background: var(--border); color: var(--text); }
+    nav button.active { background: var(--accent); color: #fff; }
+
+    main { max-width: 860px; margin: 0 auto; padding: 24px; }
+
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* Submit form */
+    .submit-form {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 28px;
+    }
+
+    .submit-form input {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 10px 14px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .submit-form input:focus { border-color: var(--accent); }
+    .submit-form input::placeholder { color: var(--muted); }
+
+    .submit-form button, .btn {
+      background: var(--accent);
+      border: none;
+      border-radius: var(--radius);
+      color: #fff;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 10px 20px;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .submit-form button:hover, .btn:hover { background: var(--accent-hover); }
+
+    /* Empty states */
+    .empty {
+      text-align: center;
+      color: var(--muted);
+      padding: 60px 0;
+      font-size: 14px;
+    }
+
+    /* Stats */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+
+    .stat-card .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-card .value { font-size: 28px; font-weight: 700; margin-top: 4px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>MediaSync</h1>
+  <div id="health-dot" title="Server status"></div>
+</header>
+
+<nav>
+  <button class="active" data-view="downloads">Downloads</button>
+  <button data-view="library">Library</button>
+  <button data-view="playlists">Playlists</button>
+  <button data-view="stats">Stats</button>
+</nav>
+
+<main>
+  <!-- Downloads -->
+  <section id="view-downloads" class="view active">
+    <div class="submit-form">
+      <input id="url-input" type="url" placeholder="YouTube / YouTube Music URL…" />
+      <button id="submit-btn">Download</button>
+    </div>
+    <div id="queue-list">
+      <div class="empty">No downloads yet — paste a URL above.</div>
+    </div>
+  </section>
+
+  <!-- Library -->
+  <section id="view-library" class="view">
+    <div class="empty">Library is empty.</div>
+  </section>
+
+  <!-- Playlists -->
+  <section id="view-playlists" class="view">
+    <div class="empty">No playlists yet.</div>
+  </section>
+
+  <!-- Stats -->
+  <section id="view-stats" class="view">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="label">Total tracks</div>
+        <div class="value" id="stat-tracks">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Storage used</div>
+        <div class="value" id="stat-storage">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Downloads done</div>
+        <div class="value" id="stat-done">—</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  // Tab navigation
+  document.querySelectorAll("nav button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
+      document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+      btn.classList.add("active");
+      document.getElementById("view-" + btn.dataset.view).classList.add("active");
+      if (btn.dataset.view === "stats") loadStats();
+    });
+  });
+
+  // Health indicator
+  async function checkHealth() {
+    const dot = document.getElementById("health-dot");
+    try {
+      const res = await fetch("/api/health");
+      dot.className = res.ok ? "ok" : "err";
+    } catch {
+      dot.className = "err";
+    }
+  }
+
+  // Stats
+  async function loadStats() {
+    try {
+      const data = await fetch("/api/stats").then(r => r.json());
+      document.getElementById("stat-tracks").textContent = data.total_tracks;
+      document.getElementById("stat-done").textContent = data.downloads_by_status.done ?? 0;
+      const mb = (data.storage_used_bytes / 1024 / 1024).toFixed(1);
+      document.getElementById("stat-storage").textContent = mb + " MB";
+    } catch {
+      // server unreachable — leave as —
+    }
+  }
+
+  // Submit placeholder (wired up in #5)
+  document.getElementById("submit-btn").addEventListener("click", () => {
+    alert("Download submission coming in the next update.");
+  });
+
+  checkHealth();
+  setInterval(checkHealth, 10000);
+</script>
+</body>
+</html>

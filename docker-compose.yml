@@ -1,0 +1,33 @@
+version: "3.8"
+
+services:
+  api:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - media_data:/mnt/media
+      - ./backend/models:/app/models
+    environment:
+      - MEDIA_PATH=/mnt/media
+      - DATABASE_PATH=/mnt/media/metadata.db
+    restart: unless-stopped
+
+  syncthing:
+    image: syncthing/syncthing:latest
+    ports:
+      - "8384:8384"
+      - "22000:22000"
+    volumes:
+      - media_data:/mnt/media
+      - syncthing_config:/var/syncthing/config
+    restart: unless-stopped
+
+volumes:
+  media_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/usb-ssd/media
+  syncthing_config:
