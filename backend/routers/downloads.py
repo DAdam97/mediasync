@@ -22,7 +22,12 @@ _YOUTUBE_PATTERN = re.compile(
 
 _download_semaphore = asyncio.Semaphore(1)
 
-_SELECT_COLS = "SELECT id, url, status, type, source, error_message FROM downloads"
+_SELECT_COLS = """
+SELECT d.id, d.url, d.status, d.type, d.source, d.error_message,
+       m.title, m.artist, m.duration_seconds
+FROM downloads d
+LEFT JOIN media m ON m.download_id = d.id
+"""
 
 _INSERT_MEDIA = """
 INSERT INTO media (title, artist, file_path, file_size_bytes,
@@ -41,7 +46,8 @@ def _source_from_url(url: str) -> str:
 
 def _row_to_record(r: tuple) -> "DownloadRecord":
     return DownloadRecord(
-        id=r[0], url=r[1], status=r[2], mode=r[3], source=r[4], error_message=r[5]
+        id=r[0], url=r[1], status=r[2], mode=r[3], source=r[4], error_message=r[5],
+        title=r[6], artist=r[7], duration_seconds=r[8],
     )
 
 
@@ -58,6 +64,9 @@ class DownloadRecord(BaseModel):
     mode: str
     source: str
     error_message: str | None = None
+    title: str | None = None
+    artist: str | None = None
+    duration_seconds: int | None = None
 
 
 async def _process_download(download_id: int, url: str) -> None:
@@ -129,7 +138,7 @@ async def retry_interrupted_downloads() -> None:
 async def list_downloads(db: DB, status: str | None = None) -> list[DownloadRecord]:
     if status is not None:
         async with db.execute(
-            _SELECT_COLS + " WHERE status = ?",
+            _SELECT_COLS + " WHERE d.status = ?",
             (status,),
         ) as cur:
             rows = await cur.fetchall()
@@ -142,7 +151,7 @@ async def list_downloads(db: DB, status: str | None = None) -> list[DownloadReco
 @router.get("/{download_id}", response_model=DownloadRecord)
 async def get_download(download_id: int, db: DB) -> DownloadRecord:
     async with db.execute(
-        _SELECT_COLS + " WHERE id = ?",
+        _SELECT_COLS + " WHERE d.id = ?",
         (download_id,),
     ) as cur:
         row = await cur.fetchone()

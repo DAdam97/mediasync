@@ -143,6 +143,30 @@ def test_discovery_limit_controls_track_count(client: TestClient) -> None:
     assert len(response.json()) == 5
 
 
+def test_done_download_includes_media_metadata(client: TestClient) -> None:
+    mock_result = {
+        "title": "Never Gonna Give You Up",
+        "artist": "Rick Astley",
+        "file_path": "music/Rick Astley - Never Gonna Give You Up.mp3",
+        "file_size_bytes": 5_000_000,
+        "duration_seconds": 213,
+    }
+    run_patch = patch(
+        "services.downloader.run_download",
+        new_callable=AsyncMock,
+        return_value=mock_result,
+    )
+    with run_patch:
+        url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        download_id = client.post("/api/downloads", json={"url": url}).json()["id"]
+
+    data = client.get(f"/api/downloads/{download_id}").json()
+    assert data["status"] == "done"
+    assert data["title"] == "Never Gonna Give You Up"
+    assert data["artist"] == "Rick Astley"
+    assert data["duration_seconds"] == 213
+
+
 def test_download_task_transitions_to_done(client: TestClient) -> None:
     mock_result = {
         "title": "Never Gonna Give You Up",
