@@ -46,8 +46,15 @@ def _source_from_url(url: str) -> str:
 
 def _row_to_record(r: tuple) -> "DownloadRecord":
     return DownloadRecord(
-        id=r[0], url=r[1], status=r[2], mode=r[3], source=r[4], error_message=r[5],
-        title=r[6], artist=r[7], duration_seconds=r[8],
+        id=r[0],
+        url=r[1],
+        status=r[2],
+        mode=r[3],
+        source=r[4],
+        error_message=r[5],
+        title=r[6],
+        artist=r[7],
+        duration_seconds=r[8],
     )
 
 
