@@ -254,6 +254,122 @@
       outline: none;
     }
     .discovery-options input[type="number"]:focus { border-color: var(--accent); }
+
+    /* Library */
+    .library-filters {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .library-filters input[type="search"] {
+      flex: 1;
+      min-width: 160px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 8px 12px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .library-filters input[type="search"]:focus { border-color: var(--accent); }
+    .library-filters input[type="search"]::placeholder { color: var(--muted); }
+
+    .library-filters select {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 8px 12px;
+      font-size: 14px;
+      outline: none;
+      cursor: pointer;
+    }
+    .library-filters select:focus { border-color: var(--accent); }
+
+    #library-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 12px;
+    }
+    #library-list .empty { grid-column: 1 / -1; }
+
+    .track-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .track-card .card-title {
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .track-card .card-artist {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .track-card-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .mood-badge {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 2px 7px;
+      border-radius: 100px;
+      background: var(--border);
+      color: var(--text);
+    }
+    .mood-badge.energetic { background: #7c3aed22; color: #a78bfa; border: 1px solid #7c3aed55; }
+    .mood-badge.chill     { background: #0369a122; color: #38bdf8; border: 1px solid #0369a155; }
+    .mood-badge.sad       { background: #1d4ed822; color: #93c5fd; border: 1px solid #1d4ed855; }
+    .mood-badge.intense   { background: #b91c1c22; color: #f87171; border: 1px solid #b91c1c55; }
+
+    .track-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 4px;
+      flex-wrap: wrap;
+    }
+    .track-actions a {
+      font-size: 12px;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: var(--radius);
+      text-decoration: none;
+      border: 1px solid var(--border);
+      color: var(--text);
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .track-actions a:hover { border-color: var(--accent); background: var(--accent)22; }
+    .track-actions .del-btn {
+      font-size: 12px;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: var(--radius);
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .track-actions .del-btn:hover { border-color: var(--red); color: var(--red); }
   </style>
 </head>
 <body>
@@ -294,7 +410,19 @@
 
   <!-- Library -->
   <section id="view-library" class="view">
-    <div class="empty">Library is empty.</div>
+    <div class="library-filters">
+      <input id="lib-search" type="search" placeholder="Search title or artist…" />
+      <select id="lib-mood">
+        <option value="">All moods</option>
+        <option value="energetic">Energetic</option>
+        <option value="chill">Chill</option>
+        <option value="sad">Sad</option>
+        <option value="intense">Intense</option>
+      </select>
+    </div>
+    <div id="library-list">
+      <div class="empty">Library is empty.</div>
+    </div>
   </section>
 
   <!-- Playlists -->
@@ -330,6 +458,7 @@
       btn.classList.add("active");
       document.getElementById("view-" + btn.dataset.view).classList.add("active");
       if (btn.dataset.view === "stats") loadStats();
+      if (btn.dataset.view === "library") loadLibrary();
     });
   });
 
@@ -498,6 +627,61 @@
   document.getElementById("url-input").addEventListener("keydown", e => {
     if (e.key === "Enter") submitDownload();
   });
+
+  // Library
+  let _libSearchTimer = null;
+
+  function _renderLibrary(tracks) {
+    const list = document.getElementById("library-list");
+    if (!tracks.length) {
+      list.innerHTML = '<div class="empty">No tracks found.</div>';
+      return;
+    }
+    list.innerHTML = "";
+    tracks.forEach(t => {
+      const card = document.createElement("div");
+      card.className = "track-card";
+      const dur = _fmtDuration(t.duration_seconds);
+      let html = `<div class="card-title">${_esc(t.title)}</div>`;
+      html += `<div class="card-artist">${_esc(t.artist || "Unknown artist")}</div>`;
+      html += `<div class="track-card-meta">`;
+      if (dur) html += `<span class="card-duration">${dur}</span>`;
+      if (t.mood) html += `<span class="mood-badge ${_esc(t.mood)}">${_esc(t.mood)}</span>`;
+      html += `</div>`;
+      html += `<div class="track-actions">`;
+      html += `<a href="${_esc(t.stream_url)}" target="_blank">Stream</a>`;
+      html += `<a href="${_esc(t.stream_url)}" download>Download</a>`;
+      html += `<button class="del-btn" onclick="deleteTrack(${t.id})">Delete</button>`;
+      html += `</div>`;
+      card.innerHTML = html;
+      list.appendChild(card);
+    });
+  }
+
+  async function loadLibrary() {
+    const search = document.getElementById("lib-search").value.trim();
+    const mood = document.getElementById("lib-mood").value;
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    if (mood) params.set("mood", mood);
+    try {
+      const tracks = await fetch("/api/library?" + params).then(r => r.json());
+      _renderLibrary(tracks);
+    } catch { /* server unreachable */ }
+  }
+
+  async function deleteTrack(id) {
+    try {
+      const res = await fetch(`/api/library/${id}`, { method: "DELETE" });
+      if (res.ok || res.status === 404) await loadLibrary();
+    } catch { /* ignore */ }
+  }
+
+  document.getElementById("lib-search").addEventListener("input", () => {
+    clearTimeout(_libSearchTimer);
+    _libSearchTimer = setTimeout(loadLibrary, 300);
+  });
+  document.getElementById("lib-mood").addEventListener("change", loadLibrary);
 
   checkHealth();
   setInterval(checkHealth, 10000);
