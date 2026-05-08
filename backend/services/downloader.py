@@ -7,11 +7,7 @@ from typing import Any
 _YOUTUBE_ID_RE = re.compile(r"[?&]v=([a-zA-Z0-9_-]{11})")
 
 
-async def fetch_related_urls(url: str, limit: int) -> list[str]:
-    match = _YOUTUBE_ID_RE.search(url)
-    video_id = match.group(1) if match else ""
-    mix_url = f"https://www.youtube.com/watch?v={video_id}&list=RD{video_id}"
-
+async def _run_yt_dlp_flat(url: str, limit: int) -> list[str]:
     proc = await asyncio.create_subprocess_exec(
         "yt-dlp",
         "--flat-playlist",
@@ -20,13 +16,23 @@ async def fetch_related_urls(url: str, limit: int) -> list[str]:
         "--playlist-end",
         str(limit),
         "--no-warnings",
-        mix_url,
+        url,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
     stdout, _ = await proc.communicate()
-    lines = [line for line in stdout.decode().splitlines() if line.strip()]
-    return lines[:limit]
+    return [line for line in stdout.decode().splitlines() if line.strip()][:limit]
+
+
+async def fetch_playlist_urls(url: str, limit: int) -> list[str]:
+    return await _run_yt_dlp_flat(url, limit)
+
+
+async def fetch_related_urls(url: str, limit: int) -> list[str]:
+    match = _YOUTUBE_ID_RE.search(url)
+    video_id = match.group(1) if match else ""
+    mix_url = f"https://www.youtube.com/watch?v={video_id}&list=RD{video_id}"
+    return await _run_yt_dlp_flat(mix_url, limit)
 
 
 async def run_download(download_id: int, url: str, media_path: str) -> dict[str, Any]:
