@@ -8,6 +8,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from config import media_path
 from database import get_db, init_db
 from routers import downloads, library
 from services import download_manager
@@ -22,6 +23,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 app = FastAPI(title="MediaSync API", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/media", StaticFiles(directory=media_path()), name="media")
 app.include_router(downloads.router)
 app.include_router(library.router)
 

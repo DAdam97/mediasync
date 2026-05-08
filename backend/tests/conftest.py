@@ -1,3 +1,4 @@
+import importlib
 from collections.abc import Generator
 from pathlib import Path
 
@@ -11,7 +12,8 @@ def client(
 ) -> Generator[TestClient, None, None]:
     monkeypatch.setenv("DATABASE_PATH", str(tmp_path / "test.db"))
     monkeypatch.setenv("MEDIA_PATH", str(tmp_path))
-    from main import app
+    import main
 
-    with TestClient(app) as c:
+    importlib.reload(main)
+    with TestClient(main.app) as c:
         yield c
