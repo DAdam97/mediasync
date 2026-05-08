@@ -2,7 +2,7 @@
 title: GitHub Issues — All Slices
 type: progress
 related: [planning.md]
-updated: 2026-05-05
+updated: 2026-05-08
 ---
 
 # GitHub Issues
@@ -20,7 +20,7 @@ Update the Status column and `updated` date whenever an issue is closed.
 | [#3](https://github.com/DAdam97/mediasync/issues/3) | Download pipeline: single track (yt-dlp → MP3 → ID3 tags → DB) | AFK | done | #2 |
 | [#4](https://github.com/DAdam97/mediasync/issues/4) | Download pipeline: YouTube playlist URL expansion | AFK | done | #3 |
 | [#5](https://github.com/DAdam97/mediasync/issues/5) | Web UI: link submission + download queue view | AFK | done | #3 |
-| [#6](https://github.com/DAdam97/mediasync/issues/6) | Library API + web UI: browse, filter by mood, search, delete | AFK | open | #3 |
+| [#6](https://github.com/DAdam97/mediasync/issues/6) | Library API + web UI: browse, filter by mood, search, delete | AFK | done | #3 |
 | [#7](https://github.com/DAdam97/mediasync/issues/7) | ML pipeline: dataset collection + Colab training + TF Lite deployment | HITL | open | #3 |
 | [#8](https://github.com/DAdam97/mediasync/issues/8) | Mood classifier inference on Pi (async, post-download) | AFK | open | #7 |
 | [#9](https://github.com/DAdam97/mediasync/issues/9) | Playlist generation: mood-based .m3u files + API | AFK | open | #8 |
@@ -136,13 +136,13 @@ Update the Status column and `updated` date whenever an issue is closed.
 **What to build:** A user can browse all downloaded tracks in the web UI, filter by mood, search by title/artist, and delete tracks. End-to-end: Library tab → track cards → search/filter → delete removes track from library and filesystem.
 
 **Acceptance criteria:**
-- [ ] `GET /api/library` returns all media items with optional `?mood=` and `?search=` query params
-- [ ] `GET /api/library/{id}` returns a single media item
-- [ ] `DELETE /api/library/{id}` removes the DB record and the MP3 file from disk
-- [ ] Web UI Library tab displays all tracks
-- [ ] Mood filter buttons filter the list client-side
-- [ ] Search input filters by title/artist client-side
-- [ ] Tests: GET list with filters, GET single, DELETE (HTTP status codes + response shapes)
+- [x] `GET /api/library` returns all media items with optional `?mood=` and `?search=` query params
+- [x] `GET /api/library/{id}` returns a single media item
+- [x] `DELETE /api/library/{id}` removes the DB record and the MP3 file from disk
+- [x] Web UI Library tab displays all tracks with Stream + Download buttons
+- [x] Mood filter dropdown filters server-side (`?mood=`)
+- [x] Search input filters by title/artist server-side (`?search=`, 300ms debounce)
+- [x] Tests: GET list with filters, GET single, DELETE, StaticFiles serving (30 tests total)
 
 ---
 

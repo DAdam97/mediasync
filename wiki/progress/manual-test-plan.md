@@ -545,7 +545,219 @@ docker compose exec api python3 -c "import aiosqlite, fastapi; print('ok')"
 
 ---
 
-## 12. Full End-to-End Regression Run
+## 12. Library API (Issue #6)
+
+These tests require at least one completed download in the database. Run Section 3 first if starting from an empty state.
+
+### 12.1 List all tracks
+
+`GET /api/library` → Execute.
+
+**Expected:**
+```json
+[
+  {
+    "id": 1,
+    "title": "Never Gonna Give You Up",
+    "artist": "Rick Astley",
+    "duration_seconds": 212,
+    "mood": null,
+    "stream_url": "/media/music/Rick Astley - Never Gonna Give You Up.mp3"
+  }
+]
+```
+HTTP 200. `mood` is null until the ML pipeline (#7) runs — this is expected.
+
+### 12.2 Filter by mood
+
+```bash
+curl "http://localhost:8000/api/library?mood=energetic"
+```
+
+**Expected:** HTTP 200, only tracks with `mood = 'energetic'` in the response. If no tracks are tagged yet, returns an empty list `[]` — not a 404.
+
+### 12.3 Search by title or artist
+
+```bash
+curl "http://localhost:8000/api/library?search=rick"
+curl "http://localhost:8000/api/library?search=never+gonna"
+```
+
+**Expected:** HTTP 200, only tracks whose title or artist contains the search string (case-insensitive). Both queries above should return the Rick Astley track.
+
+### 12.4 Combine mood + search
+
+```bash
+curl "http://localhost:8000/api/library?mood=energetic&search=rick"
+```
+
+**Expected:** HTTP 200, tracks matching both conditions. Empty list if no match — not an error.
+
+### 12.5 Get single track
+
+After noting the `id` of a track from 12.1:
+
+`GET /api/library/{id}` → Execute.
+
+**Expected:**
+```json
+{
+  "id": 1,
+  "title": "Never Gonna Give You Up",
+  "artist": "Rick Astley",
+  "duration_seconds": 212,
+  "mood": null,
+  "stream_url": "/media/music/Rick Astley - Never Gonna Give You Up.mp3"
+}
+```
+HTTP 200.
+
+### 12.6 Get non-existent track
+
+`GET /api/library/99999` → Execute.
+
+**Expected:** HTTP 404.
+
+### 12.7 Delete a track — removes DB record and file
+
+Note the `id` and `file_path` of a track, then:
+
+```bash
+curl -X DELETE http://localhost:8000/api/downloads/{id}   # wrong — must be:
+curl -X DELETE http://localhost:8000/api/library/{id}
+```
+
+**Expected:** HTTP 204 (no content).
+
+Verify DB record is gone:
+```bash
+curl http://localhost:8000/api/library/{id}
+```
+**Expected:** HTTP 404.
+
+Verify file is gone from disk:
+```bash
+docker compose exec api ls /mnt/media/music/
+```
+**Expected:** The deleted MP3 no longer appears.
+
+### 12.8 Delete — soft-fail when file is already missing from disk
+
+Manually delete the file on disk first, then try to delete via API:
+
+```bash
+docker compose exec api rm "/mnt/media/music/Rick Astley - Never Gonna Give You Up.mp3"
+curl -X DELETE http://localhost:8000/api/library/{id}
+```
+
+**Expected:** HTTP 204 — API succeeds even though the file was already gone. The DB record is deleted. No 500 error.
+
+### 12.9 Delete non-existent track
+
+```bash
+curl -X DELETE http://localhost:8000/api/library/99999
+```
+
+**Expected:** HTTP 404.
+
+---
+
+## 13. File Serving — Stream and Download (Issue #6)
+
+### 13.1 Stream a track in the browser
+
+In the Library tab of the web UI, click the **Stream** button on a track card.
+
+**Expected:**
+- A new browser tab opens.
+- The browser plays the MP3 inline (built-in audio player) or prompts to open with a media player.
+- No 404 or permission error.
+
+Alternatively, open the URL directly:
+```
+http://localhost:8000/media/music/Rick Astley - Never Gonna Give You Up.mp3
+```
+
+**Expected:** Browser plays or downloads the file — HTTP 200 with `Content-Type: audio/mpeg`.
+
+### 13.2 Stream via curl
+
+```bash
+curl -I "http://localhost:8000/media/music/Rick Astley - Never Gonna Give You Up.mp3"
+```
+
+**Expected:**
+```
+HTTP/1.1 200 OK
+content-type: audio/mpeg
+```
+
+### 13.3 Download a track to the local machine
+
+In the Library tab, click the **Download** button on a track card.
+
+**Expected:**
+- The browser saves the MP3 to the local Downloads folder (no new tab opens, file download dialog appears or download starts silently depending on browser settings).
+- The saved file is a valid MP3 — open it with any media player and it plays.
+
+### 13.4 File not found returns 404
+
+```bash
+curl -I "http://localhost:8000/media/music/nonexistent-file.mp3"
+```
+
+**Expected:** HTTP 404.
+
+---
+
+## 14. Library Web UI (Issue #6)
+
+### 14.1 Library tab — empty state
+
+Open `http://localhost:8000`, click the **Library** tab.
+
+With no downloads in the DB:
+
+**Expected:** "Library is empty" message (or similar). No JavaScript errors in the console (F12 → Console).
+
+### 14.2 Library tab — tracks appear after download
+
+After completing a download (Section 3), switch to the Library tab.
+
+**Expected:**
+- Track cards appear, each showing: title, artist, duration (formatted as `m:ss`), mood (or "—" / empty if null), a Stream button and a Download button.
+- No page reload needed — the Library tab fetches on switch.
+
+### 14.3 Mood filter buttons
+
+Click the **Energetic** filter button.
+
+**Expected:** Only tracks tagged as `energetic` appear. If none are tagged yet, the list goes empty — not an error. An "All" or reset button clears the filter and shows all tracks again.
+
+### 14.4 Search input
+
+Type "rick" in the search box.
+
+**Expected:** List filters to tracks whose title or artist contains "rick" (case-insensitive). Clearing the input shows all tracks again.
+
+### 14.5 Combined filter + search
+
+Click **Chill** then type "beatles" in the search.
+
+**Expected:** Only tracks that are both `chill` and match "beatles" appear. Empty list is valid.
+
+### 14.6 Delete from UI
+
+Click the **Delete** (×) button on a track card.
+
+**Expected:**
+- The card disappears immediately.
+- `GET /api/library/{id}` returns 404.
+- The MP3 is gone from disk (`docker compose exec api ls /mnt/media/music/`).
+
+---
+
+## 15. Full End-to-End Regression Run
 
 Run this sequence in order after any significant change:
 
@@ -554,17 +766,23 @@ Run this sequence in order after any significant change:
 3. `GET /api/stats` → valid JSON
 4. POST invalid URL → 422
 5. POST valid YouTube URL → 201, then wait for `done`
-6. `GET /api/library` → track appears with title/artist/duration
+6. `GET /api/library` → track appears with title/artist/duration, mood null
 7. File exists in `docker compose exec api ls /mnt/media/music/`
 8. ID3 tags readable (title, artist, thumbnail present)
-9. POST playlist URL → multiple `pending` cards in UI
-10. Cancel one pending download → 204, then GET → 404
-11. POST discovery mode URL with limit=3 → 3 cards
-12. Trigger an error (bad video ID) → status=error, error_message populated
-13. Retry the error → status resets to pending, reruns
-14. `docker compose restart api` mid-download → download resumes on startup
+9. `GET /api/library?search=rick` → track appears
+10. `GET /api/library?mood=energetic` → empty list (no tags yet), HTTP 200
+11. Open `http://localhost:8000/media/music/<filename>.mp3` → browser plays it
+12. Library tab → Stream button opens file in new tab
+13. Library tab → Download button saves file locally
+14. `DELETE /api/library/{id}` → 204, then GET → 404, file gone from disk
+15. POST playlist URL → multiple `pending` cards in UI
+16. Cancel one pending download → 204, then GET → 404
+17. POST discovery mode URL with limit=3 → 3 cards
+18. Trigger an error (bad video ID) → status=error, error_message populated
+19. Retry the error → status resets to pending, reruns
+20. `docker compose restart api` mid-download → download resumes on startup
 
-If all 14 steps pass, the project is in a good state.
+If all 20 steps pass, the project is in a good state.
 
 ---
 
@@ -579,3 +797,6 @@ If all 14 steps pass, the project is in a good state.
 | Cancel button not visible on pending card | JS condition checking wrong field | Check `item.status === 'pending'` in `index.html` |
 | UI stops updating even with active downloads | Smart polling stopped early | Check `hasActive` logic in polling code |
 | `GET /api/library` returns empty after successful download | `_INSERT_MEDIA` failed silently | Check logs for SQLite errors |
+| Stream button returns 404 | Static file mount path mismatch | Check `app.mount("/media", StaticFiles(...))` path in `main.py` |
+| Download button opens file instead of saving | Missing `download` attribute on `<a>` tag | Check Library card HTML in `index.html` |
+| Search returns no results | SQL LIKE pattern missing `%` wildcards | Check `?search=` handler in `routers/library.py` |

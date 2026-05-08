@@ -16,6 +16,7 @@ All pages in the MediaSync wiki. Read this file first at the start of every sess
 | [yt-dlp](concepts/yt-dlp.md) | How yt-dlp is used, Deno requirement, known limitations |
 | [TF Lite](concepts/tflite.md) | Mood classification ML pipeline: Colab training → TF Lite → Pi inference |
 | [Syncthing](concepts/syncthing.md) | File sync setup: Pi send-only, phone receive-only, WiFi-only |
+| [Library and Playback](concepts/library-and-playback.md) | Library vs offline playback, stream vs download-to-device, mood field |
 
 ## Decisions
 
