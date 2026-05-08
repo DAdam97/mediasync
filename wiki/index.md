@@ -31,3 +31,4 @@ All pages in the MediaSync wiki. Read this file first at the start of every sess
 |---|---|
 | [Planning Phase](progress/planning.md) | Decisions made in the initial grill-me + PRD session |
 | [Issues](progress/issues.md) | All GitHub issues with status and dependencies |
+| [Manual Test Plan](progress/manual-test-plan.md) | Full step-by-step manual test plan for issues #2–#5 |
