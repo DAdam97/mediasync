@@ -1,7 +1,8 @@
-import os
 from collections.abc import AsyncGenerator
 
 import aiosqlite
+
+from config import db_path
 
 _CREATE_DOWNLOADS = """
 CREATE TABLE IF NOT EXISTS downloads (
@@ -83,10 +84,6 @@ _ALL_TABLES = [
     _CREATE_PLAYLISTS,
     _CREATE_PLAYLIST_ITEMS,
 ]
-
-
-def db_path() -> str:
-    return os.getenv("DATABASE_PATH", "/mnt/media/metadata.db")
 
 
 async def init_db() -> None:
