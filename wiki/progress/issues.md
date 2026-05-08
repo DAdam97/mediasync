@@ -18,7 +18,7 @@ Update the Status column and `updated` date whenever an issue is closed.
 | [#1](https://github.com/DAdam97/mediasync/issues/1) | Pi infrastructure setup | HITL | open | — |
 | [#2](https://github.com/DAdam97/mediasync/issues/2) | Database schema + FastAPI skeleton + health endpoint | AFK | done | #1 |
 | [#3](https://github.com/DAdam97/mediasync/issues/3) | Download pipeline: single track (yt-dlp → MP3 → ID3 tags → DB) | AFK | done | #2 |
-| [#4](https://github.com/DAdam97/mediasync/issues/4) | Download pipeline: YouTube playlist URL expansion | AFK | open | #3 |
+| [#4](https://github.com/DAdam97/mediasync/issues/4) | Download pipeline: YouTube playlist URL expansion | AFK | done | #3 |
 | [#5](https://github.com/DAdam97/mediasync/issues/5) | Web UI: link submission + download queue view | AFK | done | #3 |
 | [#6](https://github.com/DAdam97/mediasync/issues/6) | Library API + web UI: browse, filter by mood, search, delete | AFK | open | #3 |
 | [#7](https://github.com/DAdam97/mediasync/issues/7) | ML pipeline: dataset collection + Colab training + TF Lite deployment | HITL | open | #3 |
@@ -107,12 +107,12 @@ Update the Status column and `updated` date whenever an issue is closed.
 **What to build:** A user submits a YouTube playlist URL. The Pi expands it into individual tracks and queues each one as a separate download record. End-to-end: POST a playlist URL → API returns list of created download IDs (one per track) → each track downloads independently.
 
 **Acceptance criteria:**
-- [ ] `POST /api/downloads` accepts playlist URLs (`?list=...`)
-- [ ] yt-dlp extracts all track URLs from the playlist
-- [ ] Each track creates its own `downloads` record
-- [ ] Response includes all created download IDs
-- [ ] `DELETE /api/downloads/{id}` cancels a pending download
-- [ ] Tests: playlist URL expansion (mocked yt-dlp), cancel pending download
+- [x] `POST /api/downloads` accepts playlist URLs (`?list=...`)
+- [x] yt-dlp extracts all track URLs from the playlist
+- [x] Each track creates its own `downloads` record
+- [x] Response includes all created download IDs
+- [x] `DELETE /api/downloads/{id}` cancels a pending download
+- [x] Tests: playlist URL expansion (mocked yt-dlp), cancel pending download
 
 ---
 

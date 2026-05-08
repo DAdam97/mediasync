@@ -6,6 +6,14 @@ Types: `feat` | `fix` | `decision` | `progress` | `note`
 
 ---
 
+## [2026-05-05] refactor | Architecture: config module, download manager service, queue writer
+
+`config.py` introduced — `db_path()` and `media_path()` centralised from scattered `os.getenv` calls. `services/download_manager.py` extracted — download state machine (`process_download`) and startup recovery (`retry_interrupted`) moved out of the router. `_enqueue()` helper added to `routers/downloads.py` — the three INSERT+task branches (track/playlist/discovery) collapsed into one. `_run_yt_dlp_flat()` private helper added to `services/downloader.py` — subprocess duplication between `fetch_playlist_urls` and `fetch_related_urls` eliminated. 9 test patch targets updated (`routers.downloads._process_download` → `services.download_manager.process_download`). 25 tests, all green. Manual test plan written to `wiki/progress/manual-test-plan.md`.
+
+## [2026-05-05] feat | Download pipeline: playlist URL expansion + cancel (#4)
+
+`POST /api/downloads` auto-detects `youtube.com/playlist?list=` URLs and expands them into individual track records (one per track, `mode="playlist"`, `status="pending"`). `fetch_playlist_urls()` added to `downloader.py` (yt-dlp `--flat-playlist` on the playlist URL directly). `DELETE /api/downloads/{id}` added — cancels pending downloads only (404 for done/downloading/non-existent). 5 new tests, 25 total, all green.
+
 ## [2026-05-04] feat | Web UI: link submission + download queue (#5)
 
 `static/index.html` fully wired: submit button calls `POST /api/downloads`, queue renders on load from `GET /api/downloads`, smart polling (3s interval, stops when no active downloads, restarts on next submit), form-level error display (422 invalid URL, network error), status badges colour-coded (yellow/blue/green/red), Enter key submits. All 16 backend tests still pass.
