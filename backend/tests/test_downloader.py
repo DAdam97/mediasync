@@ -19,9 +19,11 @@ def _output_arg(args: tuple) -> str:
     return args[idx + 1]
 
 
-def _mutagen_patches():
+def _mutagen_patches(title: str = "", artist: str = ""):
     easy_id3 = MagicMock()
-    easy_id3.return_value.get.return_value = [""]
+    easy_id3.return_value.get.side_effect = lambda key, default: (
+        [title] if key == "title" else [artist] if key == "artist" else default
+    )
     mp3_tag = MagicMock()
     mp3_tag.return_value.info.length = 180.0
     mods = {
@@ -66,3 +68,22 @@ async def test_youtube_music_url_uses_artist_title_template(tmp_path: Path) -> N
     template = _output_arg(args)
     assert "%(artist)s" in template
     assert "%(title)s" in template
+
+
+@pytest.mark.asyncio
+async def test_youtube_url_splits_artist_from_title_tag(tmp_path: Path) -> None:
+    fake_mp3 = tmp_path / "music" / "NF - When I Grow Up.mp3"
+    fake_mp3.parent.mkdir(parents=True)
+    fake_mp3.write_bytes(b"fake")
+
+    proc = _make_proc(stdout=str(fake_mp3).encode())
+
+    with patch("asyncio.create_subprocess_exec", return_value=proc), _mutagen_patches(
+        title="NF - When I Grow Up", artist="NFrealmusic"
+    ):
+        result = await run_download(
+            1, "https://www.youtube.com/watch?v=abc123", str(tmp_path)
+        )
+
+    assert result["artist"] == "NF"
+    assert result["title"] == "When I Grow Up"

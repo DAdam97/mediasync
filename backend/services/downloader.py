@@ -91,6 +91,11 @@ async def run_download(download_id: int, url: str, media_path: str) -> dict[str,
     except Exception:
         pass
 
+    if "music.youtube.com" not in url:
+        parts = title.split(" - ", 1)
+        if len(parts) == 2:
+            artist, title = parts[0], parts[1]
+
     if not title or not artist:
         name = Path(file_path).stem
         parts = name.split(" - ", 1)
