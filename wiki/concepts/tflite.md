@@ -13,15 +13,41 @@ The ML pipeline classifies each downloaded track into one of four mood categorie
 
 ## Pipeline Stages
 
-### 1. Training (Google Colab)
+### 1. Dataset Collection & Labeling
+
+Tracks for training come from the existing Pi download pipeline — no separate collection step. The dataset size is flexible (start with whatever is available, expand later).
+
+Labeling workflow (Library UI, "C approach"):
+1. Download training tracks via the normal Pi pipeline
+2. Open the Library web UI → each track card has a mood dropdown (energetic / chill / sad / intense — expandable)
+3. Listen to a few seconds, click the mood → saved via `PATCH /api/library/{id}`
+4. Rule: if unsure in 5 seconds, skip — clean examples beat noisy ones
+5. Click "Export training CSV" → downloads `dataset_labels.csv` (filename + mood)
+
+### 2. Feature Extraction (on Pi)
+
+Script: `ml/extract_features.py` — run once on the Pi before training.
+
+- Reads `dataset_labels.csv`
+- Finds each MP3 in `/mnt/media/music/`
+- Extracts the feature vector (same librosa code as production `services/feature_extractor.py`)
+- Outputs `dataset.csv`: feature columns + mood label per row
+
+This CSV (~120 rows × 58 columns) is uploaded to Google Drive for Colab. The MP3s never leave the Pi.
+
+### 3. Training (Google Colab)
 
 Location: `ml/mood_classification.ipynb`
 
+- Colab free tier, CPU is sufficient — 120 samples trains in seconds
+- No payment needed
+
 Steps:
-1. Load custom dataset: ~25-30 tracks per mood category (~100-120 tracks total)
-2. Extract features from a 30-second clip per track using librosa
-3. Train a Keras Sequential model
-4. Export to TF Lite
+1. Mount Google Drive, load `dataset.csv`
+2. Normalize features (StandardScaler)
+3. Train Keras Sequential model (80/20 split)
+4. Evaluate accuracy
+5. Export to TF Lite
 
 **Model architecture:**
 ```
@@ -75,4 +101,9 @@ Full TensorFlow is ~500 MB and requires significant RAM on import. `tflite-runti
 
 ## Future Extension
 
-Genre classification can be added later using the same pipeline: train a second model, export as `genre_classifier.tflite`, add a `genre` column to the `media` table, run inference alongside mood.
+### Genre classification (later)
+Genre comes from yt-dlp metadata (YouTube Music provides structured genre tags). No second ML model is planned.
+
+For tracks without genre metadata: **KNN genre inference** — find the K nearest neighbors in `audio_features` by cosine similarity, take the majority genre label. Implemented in `services/classifier.py` as a lookup, not a trained model. Requires #8 to be complete (feature vectors must be stored).
+
+Manual override: Library UI mood/genre dropdown + `PATCH /api/library/{id}`. User can correct any tag at any time.

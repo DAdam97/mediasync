@@ -50,3 +50,26 @@ Use Download to Device before a demo on a PC where the Pi may not be reachable, 
 `media.mood` is NULL for all tracks until the ML pipeline (issue #7) is complete. The mood filter in the Library UI is built now but will return empty results until tracks are tagged. This is expected — the filter is built in advance of the data.
 
 Valid mood values (after #7): `energetic`, `chill`, `sad`, `intense`.
+
+After #8 is complete, every new download is automatically classified and `media.mood` is populated without user action.
+
+## Genre field in the Library
+
+`media.genre` is populated from yt-dlp metadata where available (YouTube Music official releases typically have genre tags). For tracks without metadata genre: KNN inference from audio similarity (#8). Manual override always available via Library UI dropdown + `PATCH /api/library/{id}`.
+
+No second ML model is planned for genre classification.
+
+---
+
+## Playlist Diversity (issue #9 requirement)
+
+Dynamic playlist generation (e.g. "give me 20 energetic tracks") must satisfy two constraints:
+
+1. **No duplicates within one playlist** — the same track cannot appear twice in a single generated playlist. Simple deduplication during selection, not a DB-level constraint.
+2. **Acoustic variety** — consecutive tracks should not sound too similar. Algorithm: **Maximal Marginal Relevance (MMR)** on audio feature vectors. Each next track maximises (mood match − λ × similarity to already-picked tracks). Prevents 5 near-identical dnb tracks appearing back-to-back in the same playlist.
+
+Playlist length is controlled by the `limit` parameter in `POST /api/playlists/generate`. If fewer tracks exist than `limit`, returns all available.
+
+.m3u files use **relative paths** (e.g. `../music/filename.mp3`) so the same file works on both the Pi (VLC) and the phone (Poweramp) after Syncthing sync, regardless of the absolute filesystem path on each device.
+
+This is implemented in `services/playlist_generator.py` (issue #9), not in the ML model itself.

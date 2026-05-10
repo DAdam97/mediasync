@@ -148,12 +148,20 @@ Update the Status column and `updated` date whenever an issue is closed.
 
 ### #7 — ML pipeline: dataset collection + Colab training + TF Lite deployment (HITL)
 
-**What to build:** Build and train a mood classification model in Google Colab, export it as TF Lite, deploy to the Pi. Dataset must be collected manually. End-to-end: ~100 tracks across 4 moods → Colab training → `mood_classifier.tflite` committed to repo → model loads on Pi without errors.
+**What to build:** Build and train a mood classification model in Google Colab, export it as TF Lite, deploy to the Pi. Dataset must be collected manually. End-to-end: dataset labeled via Library UI → feature extraction on Pi → Colab training → `mood_classifier.tflite` committed to repo → model loads on Pi without errors.
+
+**Design decisions (2026-05-11):**
+- Dataset size is flexible — start with whatever is available, expand later
+- Labeling: Library UI mood dropdown (C approach) + "Export training CSV" button → `PATCH /api/library/{id}` saves label, export downloads `dataset_labels.csv`
+- Feature extraction: `ml/extract_features.py` runs on Pi, outputs `dataset.csv` (features + labels) — same librosa code as production `services/feature_extractor.py`
+- Training: Colab free tier CPU sufficient (120 samples trains in seconds), no payment needed
+- MP3s never leave the Pi — only the feature CSV uploads to Google Drive
 
 **Acceptance criteria:**
-- [ ] Custom dataset built: ~25-30 tracks × 4 moods (energetic, chill, sad, intense)
-- [ ] `ml/mood_classification.ipynb` extracts features with librosa (MFCC, spectral, chroma, tempo, energy)
-- [ ] Keras Sequential model trained with 80/20 train/val split
+- [ ] Library UI has mood dropdown on each track card, saves via `PATCH /api/library/{id}`
+- [ ] "Export training CSV" button downloads `dataset_labels.csv`
+- [ ] `ml/extract_features.py` reads CSV + MP3s → outputs `dataset.csv` with feature vectors
+- [ ] `ml/mood_classification.ipynb` trains Keras Sequential model on `dataset.csv` (80/20 split)
 - [ ] Model accuracy documented in the notebook
 - [ ] Model exported as `backend/models/mood_classifier.tflite`
 - [ ] `tflite-runtime` installed in the Docker image
@@ -179,10 +187,18 @@ Update the Status column and `updated` date whenever an issue is closed.
 
 **What to build:** The Pi automatically generates mood-based .m3u playlist files after every completed download. End-to-end: download completes → `auto_energetic.m3u` etc. regenerated in `/mnt/media/playlists/` → open in VLC → tracks play correctly.
 
+**Design decisions (2026-05-11):**
+- Dynamic playlist generation must apply two diversity constraints:
+  1. **No recent repetition** — exclude tracks played within the last N days (`last_played_at` in DB)
+  2. **Acoustic variety** — use Maximal Marginal Relevance (MMR) on audio feature vectors to prevent acoustically similar tracks appearing consecutively. Each pick maximises (mood match − λ × similarity to already-picked tracks)
+- `POST /api/playlists/generate` supports both `mood` and `genre` filters: `{"mood": "energetic", "genre": "rap", "limit": 20}`
+
 **Acceptance criteria:**
 - [ ] `services/playlist_generator.py` generates one .m3u file per mood containing all tagged tracks
+- [ ] Dynamic generation uses MMR diversity algorithm on audio feature vectors
+- [ ] `last_played_at` field tracked per media item, used to exclude recently played tracks
 - [ ] Playlists regenerated automatically after every download completes
-- [ ] `POST /api/playlists/generate` accepts `{"mood": "energetic", "limit": 20}` and returns a playlist
+- [ ] `POST /api/playlists/generate` accepts `{"mood": "energetic", "genre": "rap", "limit": 20}` and returns a playlist
 - [ ] `GET /api/playlists` lists all available playlists
 - [ ] `POST /api/playlists` creates a manual playlist
 - [ ] `DELETE /api/playlists/{id}` deletes a playlist and its .m3u file

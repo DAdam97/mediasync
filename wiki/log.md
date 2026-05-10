@@ -1,5 +1,47 @@
 # Log
 
+## [2026-05-11] decision | Issue #7 design session: dataset workflow, genre strategy, playlist diversity
+
+Deep design discussion for #7 (ML mood pipeline). Key decisions:
+
+1. **Success criterion**: "Play me energetic music" → system returns correctly tagged tracks. Mood classification is the primary ML output; genre is secondary.
+
+2. **4 mood categories kept** (`energetic`, `chill`, `sad`, `intense`), expandable later. Acoustic features naturally separate into ~4-6 clusters — more categories hurt classifier confidence without improving UX.
+
+3. **Genre strategy**: metadata-first (yt-dlp/YouTube Music provides structured genre tags for official releases). Fallback: KNN genre inference using cosine similarity on audio feature vectors (no second ML model). Manual override: Library UI dropdown + `PATCH /api/library/{id}`. Implemented in #8, not #7.
+
+4. **Dataset labeling via Library UI (C approach)**: track cards get a mood dropdown (predefined labels, expandable). Saves via `PATCH /api/library/{id}`. "Export training CSV" button downloads `dataset_labels.csv` for Colab. Rule: if unsure in 5 seconds, skip — clean examples over noisy ones.
+
+5. **Training workflow**: Pi feature extraction (`ml/extract_features.py`) → `dataset.csv` uploaded to Google Drive → Colab free tier CPU trains (seconds for ~120 samples, no GPU needed, no payment). MP3s never leave the Pi. The extract script reuses the same librosa code as production `services/feature_extractor.py`.
+
+6. **Auto-classification of new downloads**: after model deployed, every new download triggers feature extraction + TF Lite inference → `media.mood` auto-populated. Implemented in #8.
+
+7. **Playlist diversity (#9 requirement)**: MMR (Maximal Marginal Relevance) on audio feature vectors — consecutive tracks must not be acoustically too similar. No-repeat constraint via `last_played_at` in DB. Documented in `library-and-playback.md`.
+
+## [2026-05-10] note | Deferred: long video track splitting
+
+User wants to split long YouTube mix/compilation videos into individual tracks. Chapter-based approach (`yt-dlp --split-chapters`) was proposed but rejected — chapters are often missing, incorrectly defined, or bleed into each other. A more robust solution is needed (e.g. audio silence detection, spectral boundary detection, acoustic fingerprinting). Explicitly deferred until after core issues (#7–#11) are complete. Do not default to chapter-based splitting when this comes up.
+
+## [2026-05-10] fix | Post-#6 bug fixes: DNS, tooltip, filename template, dedup, artist parse
+
+Five bugs found during manual testing of issue #6, fixed TDD:
+
+1. **Docker DNS** — Container couldn't resolve hostnames when Pi used phone hotspot instead of home router. Fix: added `dns: [8.8.8.8, 1.1.1.1]` to `api` service in `docker-compose.yml`. Container now resolves DNS regardless of upstream network source.
+
+2. **Long title/artist truncation** — Track cards clipped long titles with no way to see the full text. Fix: added `title=` attribute to `.card-title` and `.card-artist` divs in `static/index.html` so the browser shows the full text on hover.
+
+3. **Filename template** (TDD) — Regular YouTube downloads were using `%(artist)s - %(title)s.%(ext)s`, which resulted in filenames like `NFrealmusic - NF - When I Grow Up.mp3` because `%(artist)s` for regular YouTube = channel name, not artist. Fix: YouTube Music keeps `%(artist)s - %(title)s.%(ext)s`; regular YouTube uses `%(title)s.%(ext)s` only. 3 new tests in `test_downloader.py`.
+
+4. **Duplicate URL submission** (TDD) — Same URL could be submitted multiple times. Fix: `create_download` checks `downloads` table for any non-error record with the same URL → 409 Conflict. Error-state URLs can be resubmitted (allows retry via new submit). 2 new tests in `test_downloads.py`.
+
+5. **File path collision** (TDD) — Same YouTube + YouTube Music URLs for the same song would produce the same MP3 filename (after template fix) and create two media records. Fix: `_process_download` checks `media` table for existing `file_path` before INSERT — skips INSERT if file already tracked. 1 new test in `test_downloads.py`.
+
+6. **Artist display** (TDD) — Library showed "NFrealmusic" (YouTube channel name) instead of "NF" (actual artist). Root cause: yt-dlp `%(artist)s` for regular YouTube = channel name. Fix: after reading ID3 tags, if URL is not YouTube Music, split title on ` - ` → `artist, title = parts`. 1 new test in `test_downloader.py`.
+
+Note: old DB records downloaded before the fix still show the wrong artist — delete + re-download to get correct metadata.
+
+**Rebuild required:** Python code changes need `docker compose up -d --build`, not just `docker compose up -d`.
+
 ## [2026-05-08] feat | Library API + web UI (#6)
 
 `GET /api/library` with `?mood=` and `?search=` server-side SQL filtering. `GET /api/library/{id}` single item, 404 if missing. `DELETE /api/library/{id}` removes DB record + MP3 file, soft-fails if file missing, 404 if record missing. `MediaItem` model: `duration_seconds` + `stream_url` added, raw `file_path` removed. `/media` StaticFiles mount added to `main.py` (serves MP3s at `/media/music/filename.mp3`). Library web UI: search bar (300ms debounce), mood dropdown, track cards with Stream/Download/Delete. `conftest.py` updated to use `importlib.reload(main)` — ensures StaticFiles picks up the correct `MEDIA_PATH` per test. 30 tests, all green.

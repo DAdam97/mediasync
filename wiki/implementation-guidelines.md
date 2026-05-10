@@ -72,8 +72,27 @@ If a feature involves background tasks or semaphores, answer these before writin
 
 Current design: semaphore lives in `_process_download` (router layer), status only updates to `downloading` after acquiring the lock.
 
-### 5. DB column name vs API field name mismatch
+### 5. `docker compose up -d` does NOT rebuild the image
+When Python code changes, the running container still uses the old image unless explicitly rebuilt.
+
+**Rule:** Always use `docker compose up -d --build` after any change to backend Python files or `requirements.txt`. Plain `docker compose up -d` only restarts the existing container and won't pick up code changes.
+
+### 6. yt-dlp `%(artist)s` is the channel name for regular YouTube
+For `youtube.com` videos, `%(artist)s` returns the channel name (e.g. "NFrealmusic"), not the actual artist. Only YouTube Music (`music.youtube.com`) has structured artist metadata.
+
+**Rule:** Use `%(title)s.%(ext)s` as the output template for regular YouTube. Use `%(artist)s - %(title)s.%(ext)s` only for YouTube Music. After reading ID3 tags, for non-YouTube-Music URLs split the title string on ` - ` to extract artist and track name.
+
+### 7. DB column name vs API field name mismatch
 The `downloads` table uses `type` for the column that the API exposes as `mode`. This is a known inconsistency — do not introduce more like it. When adding new columns, match the API field name exactly.
+
+### 8. Genre tag comes from metadata, not ML
+`media.genre` is populated from yt-dlp metadata (YouTube Music official releases typically include genre). For tracks without metadata genre, use KNN inference on audio feature vectors (cosine similarity — no trained model needed). There is no `genre_classifier.tflite` and no plan to train one. Do not add a genre classifier; use the KNN lookup in `services/classifier.py` instead.
+
+### 9. Playlist diversity: MMR, not simple shuffle
+Dynamic playlist generation (`POST /api/playlists/generate`) must use Maximal Marginal Relevance (MMR) on audio feature vectors to prevent acoustically similar tracks appearing consecutively. Simple `ORDER BY RANDOM()` is not acceptable — it does not guarantee acoustic variety. No-duplicate constraint is within a single playlist only (same track cannot appear twice); there is no cross-session "recently played" exclusion.
+
+### 10. .m3u files must use relative paths
+The Pi generates .m3u playlist files. Use relative paths (e.g. `../music/filename.mp3`), not absolute Pi paths (`/mnt/media/music/filename.mp3`). Absolute paths break on the phone after Syncthing sync because the filesystem layout differs.
 
 ---
 
