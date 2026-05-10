@@ -96,18 +96,23 @@ async def _process_download(download_id: int, url: str) -> None:
                 )
                 await db.commit()
 
-                await db.execute(
-                    _INSERT_MEDIA,
-                    (
-                        result["title"],
-                        result["artist"],
-                        result["file_path"],
-                        result["file_size_bytes"],
-                        result["duration_seconds"],
-                        url,
-                        download_id,
-                    ),
-                )
+                async with db.execute(
+                    "SELECT id FROM media WHERE file_path=?", (result["file_path"],)
+                ) as cur:
+                    existing_media = await cur.fetchone()
+                if existing_media is None:
+                    await db.execute(
+                        _INSERT_MEDIA,
+                        (
+                            result["title"],
+                            result["artist"],
+                            result["file_path"],
+                            result["file_size_bytes"],
+                            result["duration_seconds"],
+                            url,
+                            download_id,
+                        ),
+                    )
                 await db.execute(
                     "UPDATE downloads SET status='done', error_message=NULL,"
                     " updated_at=CURRENT_TIMESTAMP WHERE id=?",
@@ -205,6 +210,14 @@ async def create_download(
         )
 
     source = _source_from_url(req.url)
+
+    async with db.execute(
+        "SELECT id FROM downloads WHERE url=? AND status != 'error'",
+        (req.url,),
+    ) as cur:
+        existing = await cur.fetchone()
+    if existing is not None:
+        raise HTTPException(status_code=409, detail="URL already queued or downloaded")
 
     if req.mode == "discovery":
         all_urls = await downloader.fetch_related_urls(req.url, req.limit)

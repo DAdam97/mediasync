@@ -9,6 +9,9 @@ services:
     environment:
       - MEDIA_PATH=/mnt/media
       - DATABASE_PATH=/mnt/media/metadata.db
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     restart: unless-stopped
 
   syncthing:

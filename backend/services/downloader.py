@@ -39,7 +39,10 @@ async def run_download(download_id: int, url: str, media_path: str) -> dict[str,
     music_dir = Path(media_path) / "music"
     music_dir.mkdir(parents=True, exist_ok=True)
 
-    output_template = str(music_dir / "%(artist)s - %(title)s.%(ext)s")
+    if "music.youtube.com" in url:
+        output_template = str(music_dir / "%(artist)s - %(title)s.%(ext)s")
+    else:
+        output_template = str(music_dir / "%(title)s.%(ext)s")
 
     proc = await asyncio.create_subprocess_exec(
         "yt-dlp",

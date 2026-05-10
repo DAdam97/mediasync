@@ -240,3 +240,57 @@ def test_download_task_transitions_to_done(client: TestClient) -> None:
     items = media_response.json()
     assert len(items) == 1
     assert items[0]["title"] == "Never Gonna Give You Up"
+
+
+def test_duplicate_url_is_rejected_with_409(client: TestClient) -> None:
+    url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    with patch("routers.downloads._process_download", _noop):
+        first = client.post("/api/downloads", json={"url": url})
+        assert first.status_code == 201
+
+        second = client.post("/api/downloads", json={"url": url})
+        assert second.status_code == 409
+
+
+def test_error_url_can_be_resubmitted(client: TestClient) -> None:
+    url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+    with patch(
+        "services.downloader.run_download",
+        new_callable=AsyncMock,
+        side_effect=RuntimeError("yt-dlp failed"),
+    ):
+        client.post("/api/downloads", json={"url": url})
+
+    assert client.get("/api/downloads").json()[0]["status"] == "error"
+
+    with patch("routers.downloads._process_download", _noop):
+        second = client.post("/api/downloads", json={"url": url})
+    assert second.status_code == 201
+
+
+def test_duplicate_file_path_does_not_create_second_media_record(
+    client: TestClient,
+) -> None:
+    same_file_path = "music/NF - The Search.mp3"
+    mock_result = {
+        "title": "NF - The Search",
+        "artist": "NF",
+        "file_path": same_file_path,
+        "file_size_bytes": 5_000_000,
+        "duration_seconds": 208,
+    }
+
+    with patch(
+        "services.downloader.run_download",
+        new_callable=AsyncMock,
+        return_value=mock_result,
+    ):
+        client.post(
+            "/api/downloads", json={"url": "https://www.youtube.com/watch?v=yt001"}
+        )
+        client.post(
+            "/api/downloads",
+            json={"url": "https://music.youtube.com/watch?v=ytm001"},
+        )
+
+    assert len(client.get("/api/library").json()) == 1

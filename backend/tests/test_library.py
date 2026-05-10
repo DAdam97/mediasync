@@ -10,15 +10,16 @@ def _create_media(
     *,
     title: str = "Never Gonna Give You Up",
     artist: str = "Rick Astley",
-    file_path: str = "music/rick.mp3",
+    file_path: str | None = None,
     duration_seconds: int = 213,
     mood: str | None = None,
     url: str = "https://www.youtube.com/watch?v=abc123",
 ) -> None:
+    resolved_path = file_path or f"music/{title}.mp3"
     mock_result = {
         "title": title,
         "artist": artist,
-        "file_path": file_path,
+        "file_path": resolved_path,
         "file_size_bytes": 5_000_000,
         "duration_seconds": duration_seconds,
     }
@@ -82,7 +83,7 @@ def test_list_library_search_filter(client: TestClient) -> None:
 
 
 def test_get_library_item_by_id(client: TestClient) -> None:
-    _create_media(client)
+    _create_media(client, file_path="music/rick.mp3")
 
     item_id = client.get("/api/library").json()[0]["id"]
     response = client.get(f"/api/library/{item_id}")
@@ -152,7 +153,7 @@ def test_media_files_are_served_over_http(client: TestClient) -> None:
 
 
 def test_list_library_returns_track_with_correct_fields(client: TestClient) -> None:
-    _create_media(client)
+    _create_media(client, file_path="music/rick.mp3")
 
     response = client.get("/api/library")
     assert response.status_code == 200

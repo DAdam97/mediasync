@@ -642,8 +642,8 @@
       const card = document.createElement("div");
       card.className = "track-card";
       const dur = _fmtDuration(t.duration_seconds);
-      let html = `<div class="card-title">${_esc(t.title)}</div>`;
-      html += `<div class="card-artist">${_esc(t.artist || "Unknown artist")}</div>`;
+      let html = `<div class="card-title" title="${_esc(t.title)}">${_esc(t.title)}</div>`;
+      html += `<div class="card-artist" title="${_esc(t.artist || "Unknown artist")}">${_esc(t.artist || "Unknown artist")}</div>`;
       html += `<div class="track-card-meta">`;
       if (dur) html += `<span class="card-duration">${dur}</span>`;
       if (t.mood) html += `<span class="mood-badge ${_esc(t.mood)}">${_esc(t.mood)}</span>`;
