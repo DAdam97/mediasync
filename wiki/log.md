@@ -1,5 +1,61 @@
 # Log
 
+## [2026-05-17] refactor | select_best_candidate — pure candidate filter/ranker extracted from search_and_download
+
+`_is_suitable_candidate` + Topic-channel ranking összevonva publikus `select_best_candidate(candidates, blacklist_id) -> dict | None` pure functionbe (`services/downloader.py`). `search_and_download` ezt hívja a subprocess parse után.
+
+`test_mix_downloader.py` újraírva: a 4 szűrési teszt (blacklist, duration, reject words, Topic preference) + 3 új eset (too long, all filtered, no Topic fallback) mostantól direkt `select_best_candidate`-et hívnak subprocess mock nélkül. Egyetlen subprocess-mock teszt maradt: a `search_and_download` RuntimeError path-je.
+
+76/76 tests green.
+
+## [2026-05-17] refactor | DownloadQueue service — mode routing extracted from HTTP layer
+
+Created `backend/services/download_queue.py` as a deep module replacing the scattered logic in `routers/downloads.py` and `services/download_manager.py`.
+
+**New module (`download_queue.py`):**
+- `enqueue(url, mode, limit, db) -> list[DownloadRecord]` — URL validation, mode dispatch (mix/playlist/discovery/track), tracklist extraction, URL expansion, dedup, DB insert. Raises `InvalidURLError` (→ 422) or `DuplicateDownloadError` (→ 409).
+- `execute_download(download_id)` — unified state machine: looks up record from DB (url, type, blacklist_id), dispatches to `search_and_download` (mix) or `run_download` (other), runs pending→downloading→processing→done/error transitions.
+- `retry_interrupted()` — startup recovery; calls `execute_download` for all incomplete downloads (no more per-type dispatch).
+- `DownloadRecord` Pydantic model moved here from router.
+
+**Deleted:** `services/download_manager.py` (replaced entirely).
+
+**Updated:** `routers/downloads.py` — `create_download` reduced from ~150 lines to ~15. `retry_download` simplified. **Updated:** `main.py` — imports `retry_interrupted` from `download_queue`. **Updated:** `database.py` — added `blacklist_id` column to `downloads` table (used by mix tracks in `execute_download`). **Updated:** `tests/test_downloads.py`, `tests/test_mix_mode.py` — patch paths changed to `services.download_queue.execute_download`.
+
+73/73 tests green.
+
+## [2026-05-17] feat | mode=mix implemented — TDD, 73 tests green
+
+`POST /api/downloads` now supports `mode=mix`. Full implementation via TDD:
+
+**New files:**
+- `backend/services/mix_parser.py` — tracklist parser: normalize (en-dash, glued timestamps split on letter boundary), contiguous block detection (3+ matching lines, blank lines transparent), per-line processing (URL removal, slash-path strip, number prefix, timestamp+separator, emoji/bullet strip, trailing `[label]` strip), dedup by normalized key, sanity check (< 3 → `[]`).
+- `backend/services/mix_extractor.py` — cascade orchestrator: yt-dlp `--dump-json` → chapters (if `"Artist - Title"` format, 3+) → description parse → best comment by tracklist-line score. `fetch_comments=True/False` parameter.
+- `backend/tests/test_mix_parser.py` — 8 parser test cases (all spec cases)
+- `backend/tests/test_mix_extractor.py` — 6 cascade tests
+- `backend/tests/test_mix_downloader.py` — 10 search_and_download tests
+
+**Modified files:**
+- `backend/services/downloader.py` — added `search_and_download(query, blacklist_id, media_path)`: yt-dlp `ytsearch5:`, filter candidates (blacklist, duration 60-600s, reject words), prefer `- Topic` uploader, call `run_download`.
+- `backend/routers/downloads.py` — added `mode=mix` branch in `create_download`: synchronous `extract_tracklist`, empty → 1 error record, per-track: insert pending + background `_process_mix_track`. Added `_process_mix_track` (same state machine as `_process_download`, calls `search_and_download`).
+- `backend/pyproject.toml` — added `per-file-ignores: tests/* = ["E501"]` for long test data strings.
+
+**Key bug fixed during TDD:** `_GLUED_TS_RE` initially used `(?<=\S)` which split `1:00:23` into `1:` + `\n00:23` (colon is `\S`). Fix: `(?<=[A-Za-z])` — only split when timestamp immediately follows a letter.
+
+## [2026-05-17] decision | Mix download mode designed — mode=mix, 3-level cascade, search+download
+
+Full design session for `mode=mix` in `POST /api/downloads`. Key decisions:
+
+1. **Integration**: built into existing backend, not a separate microservice. Reuses `downloads` table, download manager, downloader.
+2. **Cascade (3 levels, stops at first success)**: chapters → description → comments. Shazam fingerprinting is v1 out-of-scope (adds shazamio dep + minutes of processing time).
+3. **Download strategy**: cascade extracts `"Artist - Title"` strings → `ytsearch5:` per track → pick best result (Topic channel preferred, 60–600s duration, no "sped up"/"nightcore"/etc.) → `run_download(url)`.
+4. **Source video blacklist**: the original mix video ID is excluded from search results to prevent downloading the mix again instead of the individual track.
+5. **Extraction timing**: synchronous (POST waits for cascade, max ~15s for comment fetch).
+6. **Error cases**: no tracklist found → 1 error record with video title; track not found on YouTube → error record per track.
+7. **Parser**: contiguous block detection (3+ consecutive tracklist-pattern lines), timestamp removal, number prefix stripping (safe for `2Pac`, `50 Cent`), emoji/bullet stripping, ` - ` separator requirement.
+
+Implementation plan documented in `wiki/decisions/mix-download-mode.md`. New files: `mix_parser.py`, `mix_extractor.py`, `test_mix_parser.py`. Modified: `downloader.py`, `routers/downloads.py`, `download_manager.py`. No new dependencies.
+
 ## [2026-05-17] progress | #7 verification pass — AFK portion confirmed complete
 
 Container smoke tests all green: librosa 0.10.2, feature_extractor import, tflite-runtime (ARM64 Coral repo wheel), API health. 46/46 pytest green. Ruff clean (3 E501 fixes in downloads.py + test_downloader.py). issues.md AC checkboxes updated. Remaining 2 HITL items: (1) label tracks via Library UI → run ml/extract_features.py → Colab → commit mood_classifier.tflite; (2) ml/smoke_test.py verification. Windows demo override (docker-compose.override.yml) conflicts with Pi volume on Pi — always run `docker compose -f docker-compose.yml` on Pi.

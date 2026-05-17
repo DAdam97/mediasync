@@ -36,7 +36,7 @@ async def _noop(*args: object, **kwargs: object) -> None:
 
 def test_get_download_by_id_returns_record(client: TestClient) -> None:
     url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-    with patch("routers.downloads._process_download", _noop):
+    with patch("services.download_queue.execute_download", _noop):
         created = client.post("/api/downloads", json={"url": url}).json()
 
     response = client.get(f"/api/downloads/{created['id']}")
@@ -53,7 +53,7 @@ def test_get_download_by_id_returns_404_for_missing(client: TestClient) -> None:
 
 
 def test_list_downloads_returns_all(client: TestClient) -> None:
-    with patch("routers.downloads._process_download", _noop):
+    with patch("services.download_queue.execute_download", _noop):
         client.post(
             "/api/downloads", json={"url": "https://www.youtube.com/watch?v=aaa"}
         )
@@ -67,7 +67,7 @@ def test_list_downloads_returns_all(client: TestClient) -> None:
 
 
 def test_list_downloads_filters_by_status(client: TestClient) -> None:
-    with patch("routers.downloads._process_download", _noop):
+    with patch("services.download_queue.execute_download", _noop):
         client.post(
             "/api/downloads", json={"url": "https://www.youtube.com/watch?v=aaa"}
         )
@@ -111,7 +111,7 @@ def test_discovery_mode_creates_multiple_downloads(client: TestClient) -> None:
         new_callable=AsyncMock,
         return_value=related_urls,
     )
-    with fetch_patch, patch("routers.downloads._process_download", _noop):
+    with fetch_patch, patch("services.download_queue.execute_download", _noop):
         response = client.post(
             "/api/downloads",
             json={"url": seed_url, "mode": "discovery", "limit": 3},
@@ -134,7 +134,7 @@ def test_discovery_limit_controls_track_count(client: TestClient) -> None:
         new_callable=AsyncMock,
         return_value=many_urls,
     )
-    with fetch_patch, patch("routers.downloads._process_download", _noop):
+    with fetch_patch, patch("services.download_queue.execute_download", _noop):
         response = client.post(
             "/api/downloads",
             json={"url": seed_url, "mode": "discovery", "limit": 5},
@@ -201,7 +201,7 @@ def test_retry_resets_error_and_reruns(client: TestClient) -> None:
 
 def test_retry_returns_404_for_non_error_download(client: TestClient) -> None:
     url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-    with patch("routers.downloads._process_download", _noop):
+    with patch("services.download_queue.execute_download", _noop):
         download_id = client.post("/api/downloads", json={"url": url}).json()["id"]
 
     response = client.post(f"/api/downloads/{download_id}/retry")
@@ -244,7 +244,7 @@ def test_download_task_transitions_to_done(client: TestClient) -> None:
 
 def test_duplicate_url_is_rejected_with_409(client: TestClient) -> None:
     url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-    with patch("routers.downloads._process_download", _noop):
+    with patch("services.download_queue.execute_download", _noop):
         first = client.post("/api/downloads", json={"url": url})
         assert first.status_code == 201
 
@@ -263,7 +263,7 @@ def test_error_url_can_be_resubmitted(client: TestClient) -> None:
 
     assert client.get("/api/downloads").json()[0]["status"] == "error"
 
-    with patch("routers.downloads._process_download", _noop):
+    with patch("services.download_queue.execute_download", _noop):
         second = client.post("/api/downloads", json={"url": url})
     assert second.status_code == 201
 

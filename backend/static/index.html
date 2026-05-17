@@ -421,6 +421,7 @@
       <button class="mode-btn active" data-mode="track">Track</button>
       <button class="mode-btn" data-mode="discovery">Discovery</button>
       <button class="mode-btn" data-mode="playlist">Playlist</button>
+      <button class="mode-btn" data-mode="mix">Mix</button>
     </div>
     <div class="discovery-options" id="discovery-options">
       <span>Tracks to discover:</span>
@@ -583,6 +584,9 @@
       inner += `<span class="card-status" style="color:${color}">${r.status}</span>`;
       if (dur) inner += `<span class="card-duration">${dur}</span>`;
       inner += `</div>`;
+      if (r.status === "pending") {
+        inner += `<button class="retry-btn" onclick="cancelDownload(${r.id})">Cancel</button>`;
+      }
       if (r.status === "error" && r.error_message) {
         inner += `<div class="card-error">${_esc(r.error_message)}</div>`;
         inner += `<button class="retry-btn" onclick="retryDownload(${r.id})">Retry</button>`;
@@ -639,6 +643,13 @@
     } finally {
       btn.disabled = false;
     }
+  }
+
+  async function cancelDownload(id) {
+    try {
+      const res = await fetch(`/api/downloads/${id}`, { method: "DELETE" });
+      if (res.ok) await refreshQueue();
+    } catch { /* ignore */ }
   }
 
   async function retryDownload(id) {

@@ -11,13 +11,13 @@ from pydantic import BaseModel
 from config import media_path
 from database import get_db, init_db
 from routers import downloads, library
-from services import download_manager
+from services import download_queue
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     await init_db()
-    await download_manager.retry_interrupted()
+    await download_queue.retry_interrupted()
     yield
 
 

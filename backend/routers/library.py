@@ -118,7 +118,9 @@ async def get_library_item(item_id: int, db: DB) -> MediaItem:
 
 @router.delete("/{item_id}", status_code=204)
 async def delete_library_item(item_id: int, db: DB) -> Response:
-    async with db.execute("SELECT file_path FROM media WHERE id=?", (item_id,)) as cur:
+    async with db.execute(
+        "SELECT file_path, download_id FROM media WHERE id=?", (item_id,)
+    ) as cur:
         row = await cur.fetchone()
     if row is None:
         raise HTTPException(status_code=404, detail="Track not found")
@@ -130,5 +132,7 @@ async def delete_library_item(item_id: int, db: DB) -> Response:
         pass
 
     await db.execute("DELETE FROM media WHERE id=?", (item_id,))
+    if row[1] is not None:
+        await db.execute("DELETE FROM downloads WHERE id=?", (row[1],))
     await db.commit()
     return Response(status_code=204)

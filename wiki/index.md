@@ -25,6 +25,7 @@ All pages in the MediaSync wiki. Read this file first at the start of every sess
 | [Web UI over Android](decisions/web-ui-over-android.md) | Why a simple web UI replaces the Android app for the demo |
 | [Tailscale Networking](decisions/tailscale-networking.md) | Why Tailscale was chosen for remote Pi access |
 | [Mood-only ML](decisions/mood-only-ml.md) | Why we start with mood classification only, not genre |
+| [Mix Download Mode](decisions/mix-download-mode.md) | `mode=mix`: extract tracklist from YouTube mix → search + download individual tracks |
 
 ## Progress
 

@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS downloads (
     type TEXT NOT NULL,
     status TEXT DEFAULT 'pending',
     error_message TEXT,
+    title TEXT,
+    artist TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )
@@ -90,6 +92,11 @@ async def init_db() -> None:
     async with aiosqlite.connect(db_path()) as db:
         for stmt in _ALL_TABLES:
             await db.execute(stmt)
+        for col in ("title", "artist", "blacklist_id"):
+            try:
+                await db.execute(f"ALTER TABLE downloads ADD COLUMN {col} TEXT")
+            except Exception:
+                pass
         await db.commit()
 
 
