@@ -195,3 +195,22 @@ def test_remove_track_not_in_playlist_returns_404(client: TestClient) -> None:
 
     response = client.delete(f"/api/playlists/{pl['id']}/tracks/{media_id}")
     assert response.status_code == 404
+
+
+# --- Cycle 17: PATCH /api/playlists/{id} (rename) ---
+
+
+def test_rename_playlist(client: TestClient) -> None:
+    pl = client.post("/api/playlists", json={"name": "Old Name"}).json()
+
+    response = client.patch(f"/api/playlists/{pl['id']}", json={"name": "New Name"})
+    assert response.status_code == 200
+    assert response.json()["name"] == "New Name"
+
+    listed = client.get("/api/playlists").json()
+    assert listed[0]["name"] == "New Name"
+
+
+def test_rename_missing_playlist_returns_404(client: TestClient) -> None:
+    response = client.patch("/api/playlists/999", json={"name": "X"})
+    assert response.status_code == 404

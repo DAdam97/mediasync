@@ -163,6 +163,37 @@ async def remove_track_from_playlist(playlist_id: int, media_id: int, db: DB) ->
     return Response(status_code=204)
 
 
+class RenamePlaylistRequest(BaseModel):
+    name: str
+
+
+@router.patch("/{playlist_id}", response_model=PlaylistOut)
+async def rename_playlist(playlist_id: int, body: RenamePlaylistRequest, db: DB) -> PlaylistOut:
+    async with db.execute("SELECT id, type, m3u_path FROM playlists WHERE id=?", (playlist_id,)) as cur:
+        row = await cur.fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Playlist not found")
+
+    await db.execute(
+        "UPDATE playlists SET name=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+        (body.name, playlist_id),
+    )
+    await db.commit()
+
+    async with db.execute(
+        "SELECT COUNT(*) FROM playlist_items WHERE playlist_id=?", (playlist_id,)
+    ) as cur:
+        count_row = await cur.fetchone()
+
+    return PlaylistOut(
+        id=playlist_id,
+        name=body.name,
+        type=row[1],
+        m3u_path=row[2],
+        track_count=count_row[0] if count_row else 0,
+    )
+
+
 @router.delete("/{playlist_id}", status_code=204)
 async def delete_playlist(playlist_id: int, db: DB) -> Response:
     async with db.execute(
