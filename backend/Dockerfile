@@ -16,7 +16,13 @@ ENV DENO_INSTALL="/root/.deno"
 ENV PATH="$DENO_INSTALL/bin:$PATH"
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# librosa deps (llvmlite 55 MB, scipy 33 MB) need a long timeout on slow connections
+RUN pip install --no-cache-dir --timeout 300 --retries 10 -r requirements.txt
+
+# tflite-runtime has no ARM64 wheel on PyPI — try Google Coral repo, fall back silently
+RUN pip install --no-cache-dir tflite-runtime \
+        --extra-index-url https://google-coral.github.io/py-repo/ \
+    || echo "INFO: tflite-runtime unavailable on this platform — inference disabled until installed"
 
 COPY . .
 

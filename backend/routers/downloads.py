@@ -275,7 +275,9 @@ async def create_download(
         "SELECT id FROM downloads WHERE url=? AND status != 'error'", (req.url,)
     ) as cur:
         if await cur.fetchone() is not None:
-            raise HTTPException(status_code=409, detail="URL already queued or downloaded")
+            raise HTTPException(
+                status_code=409, detail="URL already queued or downloaded"
+            )
 
     async with db.execute(
         "INSERT INTO downloads (url, source, type, status) VALUES (?, ?, ?, 'pending')",

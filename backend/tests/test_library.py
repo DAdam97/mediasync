@@ -152,6 +152,95 @@ def test_media_files_are_served_over_http(client: TestClient) -> None:
     assert response.content == b"fake mp3 content"
 
 
+def test_patch_library_item_updates_mood(client: TestClient) -> None:
+    _create_media(client)
+    item_id = client.get("/api/library").json()[0]["id"]
+
+    response = client.patch(f"/api/library/{item_id}", json={"mood": "energetic"})
+    assert response.status_code == 200
+    assert response.json()["mood"] == "energetic"
+
+
+def test_patch_library_item_clears_mood_with_null(client: TestClient) -> None:
+    _create_media(client, mood="chill")
+    item_id = client.get("/api/library").json()[0]["id"]
+
+    response = client.patch(f"/api/library/{item_id}", json={"mood": None})
+    assert response.status_code == 200
+    assert response.json()["mood"] is None
+
+
+def test_patch_library_item_rejects_unknown_mood(client: TestClient) -> None:
+    _create_media(client)
+    item_id = client.get("/api/library").json()[0]["id"]
+
+    response = client.patch(f"/api/library/{item_id}", json={"mood": "aggressive"})
+    assert response.status_code == 422
+
+
+def test_patch_library_item_returns_404_for_missing(client: TestClient) -> None:
+    response = client.patch("/api/library/99999", json={"mood": "chill"})
+    assert response.status_code == 404
+
+
+def test_export_csv_returns_only_labeled_tracks(client: TestClient) -> None:
+    _create_media(
+        client,
+        title="Song A",
+        file_path="music/song_a.mp3",
+        mood="energetic",
+        url="https://www.youtube.com/watch?v=aaa",
+    )
+    _create_media(
+        client,
+        title="Song B",
+        file_path="music/song_b.mp3",
+        url="https://www.youtube.com/watch?v=bbb",
+    )
+
+    response = client.get("/api/library/export-csv")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/csv")
+    lines = response.text.strip().splitlines()
+    assert lines[0] == "filename,mood"
+    assert len(lines) == 2
+    assert lines[1] == "song_a.mp3,energetic"
+
+
+def test_export_csv_empty_when_no_labels(client: TestClient) -> None:
+    _create_media(client, url="https://www.youtube.com/watch?v=aaa")
+
+    response = client.get("/api/library/export-csv")
+    assert response.status_code == 200
+    lines = response.text.strip().splitlines()
+    assert lines == ["filename,mood"]
+
+
+def test_export_csv_all_labeled_tracks(client: TestClient) -> None:
+    _create_media(
+        client,
+        title="Song A",
+        file_path="music/song_a.mp3",
+        mood="energetic",
+        url="https://www.youtube.com/watch?v=aaa",
+    )
+    _create_media(
+        client,
+        title="Song B",
+        file_path="music/song_b.mp3",
+        mood="chill",
+        url="https://www.youtube.com/watch?v=bbb",
+    )
+
+    response = client.get("/api/library/export-csv")
+    assert response.status_code == 200
+    lines = response.text.strip().splitlines()
+    assert lines[0] == "filename,mood"
+    assert len(lines) == 3
+    filenames = {line.split(",")[0] for line in lines[1:]}
+    assert filenames == {"song_a.mp3", "song_b.mp3"}
+
+
 def test_list_library_returns_track_with_correct_fields(client: TestClient) -> None:
     _create_media(client, file_path="music/rick.mp3")
 

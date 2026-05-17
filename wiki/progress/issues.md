@@ -158,14 +158,14 @@ Update the Status column and `updated` date whenever an issue is closed.
 - MP3s never leave the Pi — only the feature CSV uploads to Google Drive
 
 **Acceptance criteria:**
-- [ ] Library UI has mood dropdown on each track card, saves via `PATCH /api/library/{id}`
-- [ ] "Export training CSV" button downloads `dataset_labels.csv`
-- [ ] `ml/extract_features.py` reads CSV + MP3s → outputs `dataset.csv` with feature vectors
-- [ ] `ml/mood_classification.ipynb` trains Keras Sequential model on `dataset.csv` (80/20 split)
-- [ ] Model accuracy documented in the notebook
-- [ ] Model exported as `backend/models/mood_classifier.tflite`
-- [ ] `tflite-runtime` installed in the Docker image
-- [ ] Model loads and runs inference on the Pi without errors (smoke test)
+- [x] Library UI has mood dropdown on each track card, saves via `PATCH /api/library/{id}`
+- [x] "Export training CSV" button downloads `dataset_labels.csv`
+- [x] `ml/extract_features.py` reads CSV + MP3s → outputs `dataset.csv` with feature vectors
+- [x] `ml/mood_classification.ipynb` trains Keras Sequential model on `dataset.csv` (80/20 split)
+- [x] Model accuracy documented in the notebook
+- [ ] Model exported as `backend/models/mood_classifier.tflite` ← **HITL: label tracks → run ml/extract_features.py → Colab → download .tflite**
+- [x] `tflite-runtime` installed in the Docker image
+- [ ] Model loads and runs inference on the Pi without errors (smoke test) ← **HITL: depends on above**
 
 ---
 

@@ -1,8 +1,10 @@
+import io
 import os
-from typing import Annotated
+from typing import Annotated, Literal
 
 import aiosqlite
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from config import media_path
@@ -20,6 +22,10 @@ class MediaItem(BaseModel):
     duration_seconds: int | None
     mood: str | None = None
     stream_url: str
+
+
+class MoodUpdate(BaseModel):
+    mood: Literal["energetic", "chill", "sad", "intense"] | None
 
 
 @router.get("", response_model=list[MediaItem])
@@ -55,6 +61,46 @@ def _row_to_item(r: aiosqlite.Row) -> MediaItem:
         mood=r[4],
         stream_url=f"/media/{r[5]}",
     )
+
+
+@router.get("/export-csv")
+async def export_csv(db: DB) -> StreamingResponse:
+    async with db.execute(
+        "SELECT file_path, mood FROM media"
+        " WHERE mood IS NOT NULL ORDER BY created_at DESC"
+    ) as cur:
+        rows = await cur.fetchall()
+
+    output = io.StringIO()
+    output.write("filename,mood\n")
+    for file_path, mood in rows:
+        output.write(f"{os.path.basename(file_path)},{mood}\n")
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="dataset_labels.csv"'},
+    )
+
+
+@router.patch("/{item_id}", response_model=MediaItem)
+async def patch_library_item(item_id: int, body: MoodUpdate, db: DB) -> MediaItem:
+    async with db.execute("SELECT id FROM media WHERE id=?", (item_id,)) as cur:
+        row = await cur.fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Track not found")
+
+    await db.execute("UPDATE media SET mood=? WHERE id=?", (body.mood, item_id))
+    await db.commit()
+
+    async with db.execute(
+        "SELECT id, title, artist, duration_seconds, mood, file_path"
+        " FROM media WHERE id=?",
+        (item_id,),
+    ) as cur:
+        updated = await cur.fetchone()
+    return _row_to_item(updated)
 
 
 @router.get("/{item_id}", response_model=MediaItem)

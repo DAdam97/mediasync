@@ -1,5 +1,33 @@
 # Log
 
+## [2026-05-17] progress | #7 verification pass — AFK portion confirmed complete
+
+Container smoke tests all green: librosa 0.10.2, feature_extractor import, tflite-runtime (ARM64 Coral repo wheel), API health. 46/46 pytest green. Ruff clean (3 E501 fixes in downloads.py + test_downloader.py). issues.md AC checkboxes updated. Remaining 2 HITL items: (1) label tracks via Library UI → run ml/extract_features.py → Colab → commit mood_classifier.tflite; (2) ml/smoke_test.py verification. Windows demo override (docker-compose.override.yml) conflicts with Pi volume on Pi — always run `docker compose -f docker-compose.yml` on Pi.
+
+## [2026-05-17] feat | #7 ML pipeline AFK infrastructure implemented
+
+All AFK work for issue #7 complete. User HITL steps remain (label tracks, run Colab, deploy model).
+
+**Backend:**
+- `PATCH /api/library/{id}` — accepts `{"mood": "energetic"|"chill"|"sad"|"intense"|null}`, returns updated `MediaItem`. 422 on unknown mood, 404 if track missing.
+- `GET /api/library/export-csv` — returns `dataset_labels.csv` (only labeled tracks, `filename,mood` columns). Must be registered before `/{item_id}` route to avoid routing conflict.
+- `backend/models/.gitkeep` — directory tracked, `.tflite` model added by user post-Colab.
+- `backend/requirements.txt` — added `librosa==0.10.2`. `tflite-runtime` has no ARM64 PyPI wheel; Dockerfile installs via Google Coral repo with graceful fallback.
+
+**Services:**
+- `backend/services/feature_extractor.py` — extracts 57-float feature vector (MFCC 20×mean+std=40, spectral centroid, rolloff, ZCR, chroma 12, tempo, energy). 30s clip from 30s offset; falls back to 0s if track shorter than 30s.
+
+**ML scripts:**
+- `ml/extract_features.py` — standalone Pi script: reads `dataset_labels.csv` → extracts features → writes `dataset.csv` (f0..f56 + mood). Skips missing files with warning.
+- `ml/mood_classification.ipynb` — Colab notebook: Drive mount → load dataset → StandardScaler → Keras Sequential (128→64→4 softmax) → 50 epochs → export `mood_classifier.tflite` + `scaler_params.json` → download both.
+- `ml/smoke_test.py` — verify `mood_classifier.tflite` loads and runs zero-vector inference on Pi.
+
+**Library UI:**
+- Mood dropdown (`<select>`) on each track card; fires `PATCH /api/library/{id}` on change, pre-populates from existing mood.
+- "Export training CSV" button in Library filter bar; direct `<a href download>` link.
+
+**Label encoding (hardcoded):** `energetic=0, chill=1, sad=2, intense=3`
+
 ## [2026-05-11] fix | Playlist download mode implemented + multi-path yt-dlp crash fixed
 
 Three bugs found and fixed during school demo session:

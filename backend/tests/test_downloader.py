@@ -42,7 +42,10 @@ async def test_youtube_url_uses_title_only_template(tmp_path: Path) -> None:
 
     proc = _make_proc(stdout=str(fake_mp3).encode())
 
-    with patch("asyncio.create_subprocess_exec", return_value=proc) as mock_exec, _mutagen_patches():
+    with (
+        patch("asyncio.create_subprocess_exec", return_value=proc) as mock_exec,
+        _mutagen_patches(),
+    ):
         await run_download(1, "https://www.youtube.com/watch?v=abc123", str(tmp_path))
 
     args = mock_exec.call_args[0]
@@ -59,10 +62,11 @@ async def test_youtube_music_url_uses_artist_title_template(tmp_path: Path) -> N
 
     proc = _make_proc(stdout=str(fake_mp3).encode())
 
-    with patch("asyncio.create_subprocess_exec", return_value=proc) as mock_exec, _mutagen_patches():
-        await run_download(
-            1, "https://music.youtube.com/watch?v=abc123", str(tmp_path)
-        )
+    with (
+        patch("asyncio.create_subprocess_exec", return_value=proc) as mock_exec,
+        _mutagen_patches(),
+    ):
+        await run_download(1, "https://music.youtube.com/watch?v=abc123", str(tmp_path))
 
     args = mock_exec.call_args[0]
     template = _output_arg(args)
@@ -78,8 +82,9 @@ async def test_youtube_url_splits_artist_from_title_tag(tmp_path: Path) -> None:
 
     proc = _make_proc(stdout=str(fake_mp3).encode())
 
-    with patch("asyncio.create_subprocess_exec", return_value=proc), _mutagen_patches(
-        title="NF - When I Grow Up", artist="NFrealmusic"
+    with (
+        patch("asyncio.create_subprocess_exec", return_value=proc),
+        _mutagen_patches(title="NF - When I Grow Up", artist="NFrealmusic"),
     ):
         result = await run_download(
             1, "https://www.youtube.com/watch?v=abc123", str(tmp_path)

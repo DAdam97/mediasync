@@ -341,6 +341,30 @@
     .mood-badge.sad       { background: #1d4ed822; color: #93c5fd; border: 1px solid #1d4ed855; }
     .mood-badge.intense   { background: #b91c1c22; color: #f87171; border: 1px solid #b91c1c55; }
 
+    .mood-select {
+      font-size: 11px;
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px 6px;
+      cursor: pointer;
+    }
+    .mood-select:focus { outline: none; border-color: var(--accent); }
+
+    #export-csv-btn {
+      font-size: 12px;
+      padding: 6px 12px;
+      background: var(--surface);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 6px;
+      text-decoration: none;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    #export-csv-btn:hover { background: var(--accent); color: #fff; }
+
     .track-actions {
       display: flex;
       gap: 6px;
@@ -419,6 +443,7 @@
         <option value="sad">Sad</option>
         <option value="intense">Intense</option>
       </select>
+      <a id="export-csv-btn" href="/api/library/export-csv" download="dataset_labels.csv">Export training CSV</a>
     </div>
     <div id="library-list">
       <div class="empty">Library is empty.</div>
@@ -646,7 +671,13 @@
       html += `<div class="card-artist" title="${_esc(t.artist || "Unknown artist")}">${_esc(t.artist || "Unknown artist")}</div>`;
       html += `<div class="track-card-meta">`;
       if (dur) html += `<span class="card-duration">${dur}</span>`;
-      if (t.mood) html += `<span class="mood-badge ${_esc(t.mood)}">${_esc(t.mood)}</span>`;
+      html += `<select class="mood-select" data-id="${t.id}">`;
+      html += `<option value="">(none)</option>`;
+      ["energetic", "chill", "sad", "intense"].forEach(m => {
+        const sel = t.mood === m ? " selected" : "";
+        html += `<option value="${m}"${sel}>${m.charAt(0).toUpperCase() + m.slice(1)}</option>`;
+      });
+      html += `</select>`;
       html += `</div>`;
       html += `<div class="track-actions">`;
       html += `<a href="${_esc(t.stream_url)}" target="_blank">Stream</a>`;
@@ -656,6 +687,19 @@
       card.innerHTML = html;
       list.appendChild(card);
     });
+    list.querySelectorAll(".mood-select").forEach(sel => {
+      sel.addEventListener("change", () => patchMood(Number(sel.dataset.id), sel.value || null));
+    });
+  }
+
+  async function patchMood(id, mood) {
+    try {
+      await fetch(`/api/library/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mood }),
+      });
+    } catch { /* ignore */ }
   }
 
   async function loadLibrary() {
