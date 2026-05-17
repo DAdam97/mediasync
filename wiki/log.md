@@ -1,5 +1,9 @@
 # Log
 
+## [2026-05-17] progress | #7 complete — mood_classifier.tflite deployed and verified on Pi
+
+140 tracks labeled via Library UI (sad=1 removed → 3 classes: energetic=53, chill=48, intense=28). Feature extraction via `docker compose exec api python3 /tmp/extract_features.py` (130 rows). Colab training: Keras Sequential 128→64→3 softmax, 50 epochs, 61% test accuracy on 26 samples. `numpy<2` pinned in requirements.txt to fix tflite-runtime NumPy 2.x incompatibility. `mood_classifier.tflite` + `scaler_params.json` deployed to `backend/models/`. Smoke test OK — output shape [1 3]. Issue #7 closed.
+
 ## [2026-05-17] refactor | select_best_candidate — pure candidate filter/ranker extracted from search_and_download
 
 `_is_suitable_candidate` + Topic-channel ranking összevonva publikus `select_best_candidate(candidates, blacklist_id) -> dict | None` pure functionbe (`services/downloader.py`). `search_and_download` ezt hívja a subprocess parse után.

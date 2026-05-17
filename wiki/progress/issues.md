@@ -21,7 +21,7 @@ Update the Status column and `updated` date whenever an issue is closed.
 | [#4](https://github.com/DAdam97/mediasync/issues/4) | Download pipeline: YouTube playlist URL expansion | AFK | done (re-verified 2026-05-11) | #3 |
 | [#5](https://github.com/DAdam97/mediasync/issues/5) | Web UI: link submission + download queue view | AFK | done | #3 |
 | [#6](https://github.com/DAdam97/mediasync/issues/6) | Library API + web UI: browse, filter by mood, search, delete | AFK | done | #3 |
-| [#7](https://github.com/DAdam97/mediasync/issues/7) | ML pipeline: dataset collection + Colab training + TF Lite deployment | HITL | open | #3 |
+| [#7](https://github.com/DAdam97/mediasync/issues/7) | ML pipeline: dataset collection + Colab training + TF Lite deployment | HITL | done | #3 |
 | [#8](https://github.com/DAdam97/mediasync/issues/8) | Mood classifier inference on Pi (async, post-download) | AFK | open | #7 |
 | [#9](https://github.com/DAdam97/mediasync/issues/9) | Playlist generation: mood-based .m3u files + API | AFK | open | #8 |
 | [#10](https://github.com/DAdam97/mediasync/issues/10) | Web UI: playlist manager + server stats view | AFK | open | #9 |
@@ -163,9 +163,9 @@ Update the Status column and `updated` date whenever an issue is closed.
 - [x] `ml/extract_features.py` reads CSV + MP3s → outputs `dataset.csv` with feature vectors
 - [x] `ml/mood_classification.ipynb` trains Keras Sequential model on `dataset.csv` (80/20 split)
 - [x] Model accuracy documented in the notebook
-- [ ] Model exported as `backend/models/mood_classifier.tflite` ← **HITL: label tracks → run ml/extract_features.py → Colab → download .tflite**
+- [x] Model exported as `backend/models/mood_classifier.tflite`
 - [x] `tflite-runtime` installed in the Docker image
-- [ ] Model loads and runs inference on the Pi without errors (smoke test) ← **HITL: depends on above**
+- [x] Model loads and runs inference on the Pi without errors (smoke test)
 
 ---
 
