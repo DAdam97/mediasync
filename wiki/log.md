@@ -1,5 +1,25 @@
 # Log
 
+## [2026-05-18] feat | #10 playlist manager web UI — full CRUD + track management
+
+Closed issue #10. All acceptance criteria met plus extras.
+
+**New endpoints:**
+- `GET /api/playlists/{id}/tracks` — lists tracks in a playlist (position order)
+- `DELETE /api/playlists/{id}/tracks/{media_id}` — removes track from playlist, library untouched
+- `PATCH /api/playlists/{id}` — renames playlist
+
+**UI additions (index.html):**
+- Generate form (mood + limit) + manual create form in Playlists tab
+- Playlist cards with type badge, track count, Download ZIP, Delete, Tracks toggle, inline rename
+- Tracks panel (expandable): shows tracks with per-track Remove button
+- Library tab: Add-to-playlist dropdown + "+" button on each track card
+- ZIP download uses playlist name as filename and root folder inside ZIP
+
+**Tests:** 16 playlist API tests total (cycles 7–17), all passing.
+
+---
+
 ## [2026-05-19] feat | #9 playlist generation — MMR, .m3u export, ZIP download
 
 **New files:**

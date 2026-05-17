@@ -5,6 +5,7 @@ related: [planning.md]
 updated: 2026-05-18
 ---
 
+
 # GitHub Issues
 
 All vertical slices for the MediaSync project. Tracked at: https://github.com/DAdam97/mediasync/issues
@@ -24,7 +25,7 @@ Update the Status column and `updated` date whenever an issue is closed.
 | [#7](https://github.com/DAdam97/mediasync/issues/7) | ML pipeline: dataset collection + Colab training + TF Lite deployment | HITL | done | #3 |
 | [#8](https://github.com/DAdam97/mediasync/issues/8) | Mood classifier inference on Pi (async, post-download) | AFK | done | #7 |
 | [#9](https://github.com/DAdam97/mediasync/issues/9) | Playlist generation: mood-based .m3u files + API | AFK | done | #8 |
-| [#10](https://github.com/DAdam97/mediasync/issues/10) | Web UI: playlist manager + server stats view | AFK | open | #9 |
+| [#10](https://github.com/DAdam97/mediasync/issues/10) | Web UI: playlist manager + server stats view | AFK | done | #9 |
 | [#11](https://github.com/DAdam97/mediasync/issues/11) | Syncthing setup: Pi send-only + phone receive-only WiFi sync | HITL | open | #1 |
 
 ## Dependency Graph
@@ -213,12 +214,19 @@ Update the Status column and `updated` date whenever an issue is closed.
 **What to build:** The web UI shows available playlists and lets the user generate new mood-based playlists. A stats view shows storage usage and download counts. End-to-end: Playlists tab → see auto-generated playlists → Generate → select mood → new playlist appears → .m3u download link.
 
 **Acceptance criteria:**
-- [ ] Playlists tab lists all playlists from `GET /api/playlists`
-- [ ] "Generate playlist" form lets user pick mood and limit
-- [ ] Generated playlist appears in the list immediately
-- [ ] Each playlist has a download link for the .m3u file
-- [ ] Stats view shows total tracks, storage used, downloads by status
-- [ ] Server health indicator visible on all views (green/red dot)
+- [x] Playlists tab lists all playlists from `GET /api/playlists`
+- [x] "Generate playlist" form lets user pick mood and limit
+- [x] Generated playlist appears in the list immediately
+- [x] Each playlist has a Download ZIP link (replaces .m3u link — ZIP includes named folder)
+- [x] Stats view shows total tracks, storage used, downloads by status
+- [x] Server health indicator visible on all views (green/red dot)
+
+**Extra (added beyond original spec):**
+- [x] Manual playlist creation form
+- [x] Add tracks to playlist from Library tab (inline select + "+" button)
+- [x] View tracks inside a playlist (expandable Tracks panel)
+- [x] Remove individual tracks from playlist (track stays in library)
+- [x] Rename playlist inline (click title to edit)
 
 ---
 
