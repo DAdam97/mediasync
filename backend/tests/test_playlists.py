@@ -145,4 +145,4 @@ def test_download_playlist_zip(client: TestClient, tmp_path: Path, monkeypatch) 
     assert "zip" in response.headers["content-type"]
 
     with zipfile.ZipFile(io.BytesIO(response.content)) as zf:
-        assert "Test_Track.mp3" in zf.namelist()
+        assert "Demo/Test_Track.mp3" in zf.namelist()

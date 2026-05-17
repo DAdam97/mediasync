@@ -470,6 +470,66 @@
     .playlist-actions a:hover { border-color: var(--accent); background: var(--accent)22; }
     .playlist-actions .del-btn { color: var(--muted); }
     .playlist-actions .del-btn:hover { border-color: var(--red); color: var(--red); }
+
+    .pl-section-divider {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .pl-create-form {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+    .pl-create-form input {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 8px 12px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .pl-create-form input:focus { border-color: var(--accent); }
+    .pl-create-form input::placeholder { color: var(--muted); }
+
+    .add-to-playlist {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      margin-top: 4px;
+    }
+    .add-to-playlist select {
+      flex: 1;
+      min-width: 0;
+      font-size: 11px;
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 3px 6px;
+      cursor: pointer;
+    }
+    .add-to-playlist select:focus { outline: none; border-color: var(--accent); }
+    .add-to-playlist button {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .add-to-playlist button:hover { border-color: var(--accent); color: var(--accent); }
   </style>
 </head>
 <body>
@@ -552,6 +612,12 @@
         <button class="btn" id="pl-generate-btn">Generate</button>
       </div>
     </div>
+    <div class="pl-section-divider">or create manual playlist</div>
+    <div class="pl-create-form">
+      <input id="pl-manual-name" type="text" placeholder="Playlist name…" />
+      <button class="btn" id="pl-create-btn">Create</button>
+    </div>
+    <div class="pl-section-divider">all playlists</div>
     <div id="playlist-list">
       <div class="empty">No playlists yet.</div>
     </div>
@@ -769,7 +835,7 @@
   // Library
   let _libSearchTimer = null;
 
-  function _renderLibrary(tracks) {
+  function _renderLibrary(tracks, playlists = []) {
     const list = document.getElementById("library-list");
     if (!tracks.length) {
       list.innerHTML = '<div class="empty">No tracks found.</div>';
@@ -797,11 +863,28 @@
       html += `<a href="${_esc(t.stream_url)}" download>Download</a>`;
       html += `<button class="del-btn" onclick="deleteTrack(${t.id})">Delete</button>`;
       html += `</div>`;
+      if (playlists.length) {
+        html += `<div class="add-to-playlist">`;
+        html += `<select class="pl-select" data-media-id="${t.id}">`;
+        html += `<option value="">Add to playlist…</option>`;
+        playlists.forEach(pl => {
+          html += `<option value="${pl.id}">${_esc(pl.name)}</option>`;
+        });
+        html += `</select>`;
+        html += `<button class="pl-add-btn">+</button>`;
+        html += `</div>`;
+      }
       card.innerHTML = html;
       list.appendChild(card);
     });
     list.querySelectorAll(".mood-select").forEach(sel => {
       sel.addEventListener("change", () => patchMood(Number(sel.dataset.id), sel.value || null));
+    });
+    list.querySelectorAll(".pl-add-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const sel = btn.previousElementSibling;
+        addTrackToPlaylist(Number(sel.dataset.mediaId), sel);
+      });
     });
   }
 
@@ -815,6 +898,28 @@
     } catch { /* ignore */ }
   }
 
+  async function addTrackToPlaylist(mediaId, selectEl) {
+    const playlistId = selectEl.value;
+    if (!playlistId) return;
+    try {
+      const res = await fetch(`/api/playlists/${playlistId}/tracks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ media_id: mediaId }),
+      });
+      if (res.ok) {
+        selectEl.value = "";
+        const btn = selectEl.nextElementSibling;
+        btn.textContent = "✓";
+        setTimeout(() => { btn.textContent = "+"; }, 1500);
+      } else if (res.status === 409) {
+        const btn = selectEl.nextElementSibling;
+        btn.textContent = "dup";
+        setTimeout(() => { btn.textContent = "+"; }, 1500);
+      }
+    } catch { /* ignore */ }
+  }
+
   async function loadLibrary() {
     const search = document.getElementById("lib-search").value.trim();
     const mood = document.getElementById("lib-mood").value;
@@ -822,8 +927,12 @@
     if (search) params.set("search", search);
     if (mood) params.set("mood", mood);
     try {
-      const tracks = await fetch("/api/library?" + params).then(r => r.json());
-      _renderLibrary(tracks);
+      const [tracks, playlists] = await Promise.all([
+        fetch("/api/library?" + params).then(r => r.json()),
+        fetch("/api/playlists").then(r => r.json()),
+      ]);
+      _cachedPlaylists = playlists;
+      _renderLibrary(tracks, playlists);
     } catch { /* server unreachable */ }
   }
 
@@ -839,6 +948,9 @@
     _libSearchTimer = setTimeout(loadLibrary, 300);
   });
   document.getElementById("lib-mood").addEventListener("change", loadLibrary);
+
+  // Shared playlist cache (used by Library tab)
+  let _cachedPlaylists = [];
 
   // Playlists
   function _renderPlaylists(playlists) {
@@ -868,9 +980,33 @@
   async function loadPlaylists() {
     try {
       const playlists = await fetch("/api/playlists").then(r => r.json());
+      _cachedPlaylists = playlists;
       _renderPlaylists(playlists);
     } catch { /* server unreachable */ }
   }
+
+  async function createManualPlaylist() {
+    const input = document.getElementById("pl-manual-name");
+    const name = input.value.trim();
+    if (!name) { input.focus(); return; }
+    const btn = document.getElementById("pl-create-btn");
+    btn.disabled = true;
+    try {
+      const res = await fetch("/api/playlists", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      if (res.ok) { input.value = ""; await loadPlaylists(); }
+    } catch { /* ignore */ } finally {
+      btn.disabled = false;
+    }
+  }
+
+  document.getElementById("pl-create-btn").addEventListener("click", createManualPlaylist);
+  document.getElementById("pl-manual-name").addEventListener("keydown", e => {
+    if (e.key === "Enter") createManualPlaylist();
+  });
 
   async function generatePlaylist() {
     const name = document.getElementById("pl-name").value.trim();

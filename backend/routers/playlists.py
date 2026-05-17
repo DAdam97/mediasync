@@ -2,6 +2,7 @@ import asyncio
 import io
 import json
 import os
+import re
 import zipfile
 from pathlib import Path
 from typing import Annotated
@@ -137,9 +138,12 @@ async def delete_playlist(playlist_id: int, db: DB) -> Response:
 
 @router.get("/{playlist_id}/download")
 async def download_playlist_zip(playlist_id: int, db: DB) -> StreamingResponse:
-    async with db.execute("SELECT id FROM playlists WHERE id=?", (playlist_id,)) as cur:
-        if await cur.fetchone() is None:
-            raise HTTPException(status_code=404, detail="Playlist not found")
+    async with db.execute("SELECT id, name FROM playlists WHERE id=?", (playlist_id,)) as cur:
+        row = await cur.fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Playlist not found")
+    playlist_name = row[1]
+    safe_name = re.sub(r"[^\w\s-]", "", playlist_name).strip().replace(" ", "_") or "playlist"
 
     async with db.execute(
         "SELECT m.file_path, m.title FROM media m"
@@ -151,14 +155,14 @@ async def download_playlist_zip(playlist_id: int, db: DB) -> StreamingResponse:
 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        for file_path, title in tracks:
+        for file_path, _title in tracks:
             abs_path = Path(media_path()) / file_path
             if abs_path.exists():
-                zf.write(abs_path, abs_path.name)
+                zf.write(abs_path, f"{safe_name}/{abs_path.name}")
     buf.seek(0)
 
     return StreamingResponse(
         iter([buf.getvalue()]),
         media_type="application/zip",
-        headers={"Content-Disposition": 'attachment; filename="playlist.zip"'},
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}.zip"'},
     )
