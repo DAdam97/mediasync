@@ -66,7 +66,7 @@ async def run_download(download_id: int, url: str, media_path: str) -> dict[str,
     if proc.returncode != 0:
         raise RuntimeError(stderr.decode().strip() or "yt-dlp failed")
 
-    file_path = stdout.decode().strip()
+    file_path = stdout.decode().splitlines()[0].strip() if stdout else ""
     if not file_path:
         raise RuntimeError("yt-dlp produced no output file path")
 

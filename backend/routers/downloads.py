@@ -211,19 +211,46 @@ async def create_download(
 
     source = _source_from_url(req.url)
 
-    async with db.execute(
-        "SELECT id FROM downloads WHERE url=? AND status != 'error'",
-        (req.url,),
-    ) as cur:
-        existing = await cur.fetchone()
-    if existing is not None:
-        raise HTTPException(status_code=409, detail="URL already queued or downloaded")
+    if req.mode == "playlist":
+        all_urls = await downloader.fetch_playlist_urls(req.url, req.limit)
+        urls = [u for u in all_urls if _is_valid_youtube_url(u)][: req.limit]
+        records = []
+        for url in urls:
+            async with db.execute(
+                "SELECT id FROM downloads WHERE url=? AND status != 'error'", (url,)
+            ) as cur:
+                if await cur.fetchone() is not None:
+                    continue
+            async with db.execute(
+                "INSERT INTO downloads (url, source, type, status)"
+                " VALUES (?, ?, 'playlist', 'pending')",
+                (url, source),
+            ) as cur:
+                row_id = cur.lastrowid
+            assert row_id is not None
+            records.append(
+                DownloadRecord(
+                    id=row_id,
+                    url=url,
+                    status="pending",
+                    mode="playlist",
+                    source=source,
+                )
+            )
+            background_tasks.add_task(_process_download, row_id, url)
+        await db.commit()
+        return records
 
     if req.mode == "discovery":
         all_urls = await downloader.fetch_related_urls(req.url, req.limit)
         urls = [u for u in all_urls if _is_valid_youtube_url(u)][: req.limit]
         records = []
         for url in urls:
+            async with db.execute(
+                "SELECT id FROM downloads WHERE url=? AND status != 'error'", (url,)
+            ) as cur:
+                if await cur.fetchone() is not None:
+                    continue
             async with db.execute(
                 "INSERT INTO downloads (url, source, type, status)"
                 " VALUES (?, ?, 'discovery', 'pending')",
@@ -243,6 +270,12 @@ async def create_download(
             background_tasks.add_task(_process_download, row_id, url)
         await db.commit()
         return records
+
+    async with db.execute(
+        "SELECT id FROM downloads WHERE url=? AND status != 'error'", (req.url,)
+    ) as cur:
+        if await cur.fetchone() is not None:
+            raise HTTPException(status_code=409, detail="URL already queued or downloaded")
 
     async with db.execute(
         "INSERT INTO downloads (url, source, type, status) VALUES (?, ?, ?, 'pending')",

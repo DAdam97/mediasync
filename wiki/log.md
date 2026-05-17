@@ -1,5 +1,21 @@
 # Log
 
+## [2026-05-11] fix | Playlist download mode implemented + multi-path yt-dlp crash fixed
+
+Three bugs found and fixed during school demo session:
+
+1. **Playlist mode not wired up** — `fetch_playlist_urls` existed in `downloader.py` but `create_download` had no `mode == "playlist"` branch. Added the branch: fetches individual track URLs via yt-dlp `--flat-playlist`, inserts each as a separate `downloads` record with per-track dedup. UI button re-enabled (was `disabled` with "Coming soon" label).
+
+2. **yt-dlp multi-path crash** — When a pure playlist URL (no `v=`) was submitted in track mode, `--no-playlist` had no effect and yt-dlp downloaded all tracks, printing all file paths joined by newlines. `os.stat()` received the full multi-line string as a filename → `FileNotFoundError`. Fix: `stdout.decode().splitlines()[0].strip()` — take only the first path.
+
+3. **Dedup check blocked playlist re-submission** — The top-level duplicate URL check (`WHERE url=? AND status != 'error'`) ran before playlist/discovery mode branching. After fix #2, the first track mode attempt succeeded and set the playlist URL to `done`, so re-submitting in playlist mode returned 409. Fix: moved the dedup check inside the track-only branch; playlist and discovery modes handle per-track dedup in their own loops.
+
+4. **Discovery mode missing per-track dedup** — Same dedup logic was absent from the discovery branch. Added alongside the playlist fix.
+
+**Issue #4 status corrected:** Was marked `done` but playlist mode was never actually connected. Now truly done.
+
+**Local demo setup:** Added `docker-compose.override.yml` that replaces the Pi-specific bind mount (`/mnt/usb-ssd/media`) with `C:\tmp\mediasync-demo` for running the full stack (yt-dlp + ffmpeg + Deno) on Windows via Docker Desktop.
+
 ## [2026-05-11] decision | Issue #7 design session: dataset workflow, genre strategy, playlist diversity
 
 Deep design discussion for #7 (ML mood pipeline). Key decisions:
