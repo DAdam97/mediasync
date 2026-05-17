@@ -86,6 +86,34 @@ async def create_manual_playlist(body: CreatePlaylistRequest, db: DB) -> Playlis
     return PlaylistOut(id=playlist_id, name=body.name, type="manual", m3u_path=None)
 
 
+class TrackOut(BaseModel):
+    id: int
+    title: str
+    artist: str | None
+    mood: str | None
+    file_path: str
+    position: int
+
+
+@router.get("/{playlist_id}/tracks", response_model=list[TrackOut])
+async def list_playlist_tracks(playlist_id: int, db: DB) -> list[TrackOut]:
+    async with db.execute("SELECT id FROM playlists WHERE id=?", (playlist_id,)) as cur:
+        if await cur.fetchone() is None:
+            raise HTTPException(status_code=404, detail="Playlist not found")
+
+    async with db.execute(
+        "SELECT m.id, m.title, m.artist, m.mood, m.file_path, pi.position"
+        " FROM media m JOIN playlist_items pi ON pi.media_id = m.id"
+        " WHERE pi.playlist_id=? ORDER BY pi.position",
+        (playlist_id,),
+    ) as cur:
+        rows = await cur.fetchall()
+    return [
+        TrackOut(id=r[0], title=r[1], artist=r[2], mood=r[3], file_path=r[4], position=r[5])
+        for r in rows
+    ]
+
+
 @router.post("/{playlist_id}/tracks", status_code=200)
 async def add_track(playlist_id: int, body: AddTrackRequest, db: DB) -> dict:
     async with db.execute("SELECT id FROM playlists WHERE id=?", (playlist_id,)) as cur:
@@ -112,6 +140,27 @@ async def add_track(playlist_id: int, body: AddTrackRequest, db: DB) -> dict:
     )
     await db.commit()
     return {"playlist_id": playlist_id, "media_id": body.media_id, "position": next_pos}
+
+
+@router.delete("/{playlist_id}/tracks/{media_id}", status_code=204)
+async def remove_track_from_playlist(playlist_id: int, media_id: int, db: DB) -> Response:
+    async with db.execute("SELECT id FROM playlists WHERE id=?", (playlist_id,)) as cur:
+        if await cur.fetchone() is None:
+            raise HTTPException(status_code=404, detail="Playlist not found")
+
+    async with db.execute(
+        "SELECT id FROM playlist_items WHERE playlist_id=? AND media_id=?",
+        (playlist_id, media_id),
+    ) as cur:
+        if await cur.fetchone() is None:
+            raise HTTPException(status_code=404, detail="Track not in playlist")
+
+    await db.execute(
+        "DELETE FROM playlist_items WHERE playlist_id=? AND media_id=?",
+        (playlist_id, media_id),
+    )
+    await db.commit()
+    return Response(status_code=204)
 
 
 @router.delete("/{playlist_id}", status_code=204)

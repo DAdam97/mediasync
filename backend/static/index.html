@@ -471,6 +471,37 @@
     .playlist-actions .del-btn { color: var(--muted); }
     .playlist-actions .del-btn:hover { border-color: var(--red); color: var(--red); }
 
+    .playlist-tracks {
+      display: none;
+      flex-direction: column;
+      gap: 4px;
+      margin-top: 4px;
+      border-top: 1px solid var(--border);
+      padding-top: 8px;
+    }
+    .playlist-tracks.open { display: flex; }
+    .playlist-track-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 13px;
+      padding: 4px 0;
+    }
+    .playlist-track-row span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .remove-track-btn {
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: var(--radius);
+      border: 1px solid var(--border);
+      background: none;
+      color: var(--muted);
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .remove-track-btn:hover { border-color: var(--red); color: var(--red); }
+
     .pl-section-divider {
       font-size: 12px;
       color: var(--muted);
@@ -963,18 +994,79 @@
     playlists.forEach(pl => {
       const card = document.createElement("div");
       card.className = "playlist-card";
-      let html = `<div class="card-title">${_esc(pl.name)}</div>`;
+      const safeName = _esc(pl.name);
+      let html = `<div class="card-title">${safeName}</div>`;
       html += `<div class="playlist-card-meta">`;
       html += `<span class="type-badge ${_esc(pl.type)}">${_esc(pl.type)}</span>`;
-      html += `<span class="track-count">${pl.track_count} track${pl.track_count !== 1 ? "s" : ""}</span>`;
+      html += `<span class="track-count" id="pl-count-${pl.id}">${pl.track_count} track${pl.track_count !== 1 ? "s" : ""}</span>`;
       html += `</div>`;
       html += `<div class="playlist-actions">`;
-      html += `<a href="/api/playlists/${pl.id}/download" download="playlist.zip">Download ZIP</a>`;
+      if (pl.track_count > 0) {
+        html += `<button onclick="togglePlaylistTracks(${pl.id}, this)">Tracks</button>`;
+      }
+      html += `<a href="/api/playlists/${pl.id}/download" download="${safeName}.zip">Download ZIP</a>`;
       html += `<button class="del-btn" onclick="deletePlaylist(${pl.id})">Delete</button>`;
       html += `</div>`;
+      html += `<div class="playlist-tracks" id="pl-tracks-${pl.id}"></div>`;
       card.innerHTML = html;
       list.appendChild(card);
     });
+  }
+
+  async function togglePlaylistTracks(playlistId, btn) {
+    const container = document.getElementById(`pl-tracks-${playlistId}`);
+    if (container.classList.contains("open")) {
+      container.classList.remove("open");
+      btn.textContent = "Tracks";
+      return;
+    }
+    btn.textContent = "…";
+    try {
+      const tracks = await fetch(`/api/playlists/${playlistId}/tracks`).then(r => r.json());
+      _renderPlaylistTracks(playlistId, tracks);
+      container.classList.add("open");
+      btn.textContent = "Hide";
+    } catch {
+      btn.textContent = "Tracks";
+    }
+  }
+
+  function _renderPlaylistTracks(playlistId, tracks) {
+    const container = document.getElementById(`pl-tracks-${playlistId}`);
+    if (!tracks.length) {
+      container.innerHTML = '<span style="color:var(--muted);font-size:13px">No tracks yet.</span>';
+      return;
+    }
+    container.innerHTML = tracks.map(t =>
+      `<div class="playlist-track-row">
+        <span title="${_esc(t.title)}">${_esc(t.title)}${t.artist ? ` <span style="color:var(--muted)">— ${_esc(t.artist)}</span>` : ""}</span>
+        <button class="remove-track-btn" onclick="removeTrackFromPlaylist(${playlistId}, ${t.id}, this)">Remove</button>
+      </div>`
+    ).join("");
+  }
+
+  async function removeTrackFromPlaylist(playlistId, mediaId, btn) {
+    btn.disabled = true;
+    btn.textContent = "…";
+    try {
+      const res = await fetch(`/api/playlists/${playlistId}/tracks/${mediaId}`, { method: "DELETE" });
+      if (res.ok) {
+        const row = btn.closest(".playlist-track-row");
+        row.remove();
+        // update count badge
+        const countEl = document.getElementById(`pl-count-${playlistId}`);
+        if (countEl) {
+          const n = Math.max(0, parseInt(countEl.textContent, 10) - 1);
+          countEl.textContent = `${n} track${n !== 1 ? "s" : ""}`;
+        }
+      } else {
+        btn.disabled = false;
+        btn.textContent = "Remove";
+      }
+    } catch {
+      btn.disabled = false;
+      btn.textContent = "Remove";
+    }
   }
 
   async function loadPlaylists() {

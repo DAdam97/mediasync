@@ -146,3 +146,52 @@ def test_download_playlist_zip(client: TestClient, tmp_path: Path, monkeypatch) 
 
     with zipfile.ZipFile(io.BytesIO(response.content)) as zf:
         assert "Demo/Test_Track.mp3" in zf.namelist()
+
+
+# --- Cycle 13: GET /api/playlists/{id}/tracks ---
+
+
+def test_list_playlist_tracks(client: TestClient) -> None:
+    pl = client.post("/api/playlists", json={"name": "Workout"}).json()
+    media_id = _add_media(client, "Track A")
+    client.post(f"/api/playlists/{pl['id']}/tracks", json={"media_id": media_id})
+
+    response = client.get(f"/api/playlists/{pl['id']}/tracks")
+    assert response.status_code == 200
+    tracks = response.json()
+    assert len(tracks) == 1
+    assert tracks[0]["id"] == media_id
+    assert tracks[0]["title"] == "Track A"
+
+
+def test_list_tracks_missing_playlist_returns_404(client: TestClient) -> None:
+    response = client.get("/api/playlists/999/tracks")
+    assert response.status_code == 404
+
+
+# --- Cycle 15: DELETE /api/playlists/{id}/tracks/{media_id} ---
+
+
+def test_remove_track_from_playlist(client: TestClient) -> None:
+    pl = client.post("/api/playlists", json={"name": "Workout"}).json()
+    media_id = _add_media(client, "Track A")
+    client.post(f"/api/playlists/{pl['id']}/tracks", json={"media_id": media_id})
+
+    response = client.delete(f"/api/playlists/{pl['id']}/tracks/{media_id}")
+    assert response.status_code == 204
+
+    # track gone from playlist
+    tracks = client.get(f"/api/playlists/{pl['id']}/tracks").json()
+    assert tracks == []
+
+    # track still in library
+    library = client.get("/api/library").json()
+    assert any(t["id"] == media_id for t in library)
+
+
+def test_remove_track_not_in_playlist_returns_404(client: TestClient) -> None:
+    pl = client.post("/api/playlists", json={"name": "Workout"}).json()
+    media_id = _add_media(client)
+
+    response = client.delete(f"/api/playlists/{pl['id']}/tracks/{media_id}")
+    assert response.status_code == 404
