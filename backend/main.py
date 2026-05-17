@@ -10,7 +10,7 @@ from pydantic import BaseModel
 
 from config import media_path
 from database import get_db, init_db
-from routers import downloads, library
+from routers import downloads, library, playlists
 from services import download_queue
 
 
@@ -26,6 +26,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/media", StaticFiles(directory=media_path()), name="media")
 app.include_router(downloads.router)
 app.include_router(library.router)
+app.include_router(playlists.router)
 
 DB = Annotated[aiosqlite.Connection, Depends(get_db)]
 

@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from config import db_path, media_path
 from services import classifier, downloader, feature_extractor, mix_extractor
+from services.playlist_generator import generate_mood_playlists
 
 _YOUTUBE_PATTERN = re.compile(
     r"^https?://(www\.)?(youtube\.com/watch\?.*v=|youtu\.be/"
@@ -273,6 +274,12 @@ async def execute_download(download_id: int) -> None:
                         await _run_inference(db, media_id, result["file_path"])
                     except Exception:
                         pass
+                try:
+                    await asyncio.to_thread(
+                        generate_mood_playlists, db_path(), media_path()
+                    )
+                except Exception:
+                    pass
                 await db.execute(
                     "UPDATE downloads SET status='done', error_message=NULL,"
                     " updated_at=CURRENT_TIMESTAMP WHERE id=?",
