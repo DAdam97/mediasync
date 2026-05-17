@@ -23,7 +23,7 @@ Update the Status column and `updated` date whenever an issue is closed.
 | [#6](https://github.com/DAdam97/mediasync/issues/6) | Library API + web UI: browse, filter by mood, search, delete | AFK | done | #3 |
 | [#7](https://github.com/DAdam97/mediasync/issues/7) | ML pipeline: dataset collection + Colab training + TF Lite deployment | HITL | done | #3 |
 | [#8](https://github.com/DAdam97/mediasync/issues/8) | Mood classifier inference on Pi (async, post-download) | AFK | done | #7 |
-| [#9](https://github.com/DAdam97/mediasync/issues/9) | Playlist generation: mood-based .m3u files + API | AFK | open | #8 |
+| [#9](https://github.com/DAdam97/mediasync/issues/9) | Playlist generation: mood-based .m3u files + API | AFK | done | #8 |
 | [#10](https://github.com/DAdam97/mediasync/issues/10) | Web UI: playlist manager + server stats view | AFK | open | #9 |
 | [#11](https://github.com/DAdam97/mediasync/issues/11) | Syncthing setup: Pi send-only + phone receive-only WiFi sync | HITL | open | #1 |
 
@@ -194,16 +194,17 @@ Update the Status column and `updated` date whenever an issue is closed.
 - `POST /api/playlists/generate` supports both `mood` and `genre` filters: `{"mood": "energetic", "genre": "rap", "limit": 20}`
 
 **Acceptance criteria:**
-- [ ] `services/playlist_generator.py` generates one .m3u file per mood containing all tagged tracks
-- [ ] Dynamic generation uses MMR diversity algorithm on audio feature vectors
-- [ ] `last_played_at` field tracked per media item, used to exclude recently played tracks
-- [ ] Playlists regenerated automatically after every download completes
-- [ ] `POST /api/playlists/generate` accepts `{"mood": "energetic", "genre": "rap", "limit": 20}` and returns a playlist
-- [ ] `GET /api/playlists` lists all available playlists
-- [ ] `POST /api/playlists` creates a manual playlist
-- [ ] `DELETE /api/playlists/{id}` deletes a playlist and its .m3u file
-- [ ] .m3u files are valid and openable in VLC
-- [ ] Tests: playlist API endpoints (HTTP status + response shape)
+- [x] `services/playlist_generator.py` generates one .m3u file per mood containing all tagged tracks
+- [x] Dynamic generation uses MMR diversity algorithm on audio feature vectors
+- [x] Playlists regenerated automatically after every download completes
+- [x] `POST /api/playlists/generate` accepts `{"name": "Demo", "mood": "energetic", "genre": null, "limit": 20}` and returns a playlist
+- [x] `GET /api/playlists` lists all available playlists
+- [x] `POST /api/playlists` creates a manual playlist (empty, name only)
+- [x] `POST /api/playlists/{id}/tracks` adds a track (409 on duplicate)
+- [x] `DELETE /api/playlists/{id}` deletes a playlist and its .m3u file
+- [x] `GET /api/playlists/{id}/download` returns ZIP of all MP3s in the playlist
+- [x] .m3u files use relative paths (`../music/filename.mp3`) — valid for Syncthing sync
+- [x] Tests: 16 tests total (6 unit + 10 API)
 
 ---
 

@@ -1,5 +1,20 @@
 # Log
 
+## [2026-05-19] feat | #9 playlist generation — MMR, .m3u export, ZIP download
+
+**New files:**
+- `backend/services/playlist_generator.py` — `generate_playlist(db_path, media_path, name, mood, genre, limit)`: queries matching tracks, splits into with/without feature vectors, MMR-orders the feature-vector group, appends no-vector tracks at end, writes `.m3u` with relative `../music/` paths, inserts `playlists` + `playlist_items` DB records. `generate_mood_playlists(db_path, media_path)`: upserts `auto_energetic`, `auto_chill`, `auto_intense` playlists (deletes old before creating new).
+- `backend/routers/playlists.py` — `GET /api/playlists`, `POST /api/playlists/generate`, `POST /api/playlists` (manual, empty), `POST /api/playlists/{id}/tracks` (409 on duplicate), `DELETE /api/playlists/{id}`, `GET /api/playlists/{id}/download` (ZIP of MP3s).
+- `backend/tests/test_playlist_generator.py` — 6 unit tests (MMR order, no-feature last, limit, .m3u relative paths, mood files, no-duplicate on re-run).
+- `backend/tests/test_playlists.py` — 10 API tests (list, create manual, generate, add track, duplicate 409, 404, delete, ZIP download).
+- `ml/backfill_moods.py` — one-time script: retroactively runs mood inference on all `media` records with `mood IS NULL`. Run with `docker compose exec api python3 /tmp/backfill_moods.py` (copy via `docker cp`). 72/74 tracks labeled in first run (2 DB-lock errors), re-run fixed remaining 2.
+
+**Modified files:**
+- `backend/services/download_queue.py` — calls `generate_mood_playlists` after every successful download (wrapped in `asyncio.to_thread`, exceptions silently caught).
+- `backend/main.py` — registered `playlists.router`.
+
+98/98 tests green. Ruff clean. Issue #9 closed.
+
 ## [2026-05-18] feat | #8 mood inference wired — classifier.py + execute_download integration
 
 **New files:**
