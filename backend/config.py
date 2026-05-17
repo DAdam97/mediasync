@@ -7,3 +7,7 @@ def db_path() -> str:
 
 def media_path() -> str:
     return os.getenv("MEDIA_PATH", "/mnt/media")
+
+
+def models_path() -> str:
+    return os.getenv("MODELS_PATH", "/app/models")

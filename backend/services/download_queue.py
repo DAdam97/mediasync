@@ -1,13 +1,15 @@
 import asyncio
+import json as _json
 import re
 from collections.abc import Callable, Coroutine
+from pathlib import Path
 from typing import Any
 
 import aiosqlite
 from pydantic import BaseModel
 
 from config import db_path, media_path
-from services import downloader, mix_extractor
+from services import classifier, downloader, feature_extractor, mix_extractor
 
 _YOUTUBE_PATTERN = re.compile(
     r"^https?://(www\.)?(youtube\.com/watch\?.*v=|youtu\.be/"
@@ -172,7 +174,41 @@ async def _enqueue_track(
         row_id = cur.lastrowid
     assert row_id is not None
     await db.commit()
-    return [DownloadRecord(id=row_id, url=url, status="pending", mode=mode, source=source)]
+    return [
+        DownloadRecord(id=row_id, url=url, status="pending", mode=mode, source=source)
+    ]
+
+
+async def _run_inference(
+    db: aiosqlite.Connection, media_id: int, file_path: str
+) -> None:
+    full_path = str(Path(media_path()) / file_path)
+    features = await asyncio.to_thread(feature_extractor.extract_features, full_path)
+    await db.execute(
+        "INSERT OR IGNORE INTO audio_features"
+        " (media_id, mfcc_mean, mfcc_std, spectral_centroid, spectral_rolloff,"
+        " zero_crossing_rate, chroma_mean, tempo, energy, feature_vector)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            media_id,
+            _json.dumps(features[:20]),
+            _json.dumps(features[20:40]),
+            features[40],
+            features[41],
+            features[42],
+            _json.dumps(features[43:55]),
+            features[55],
+            features[56],
+            _json.dumps(features),
+        ),
+    )
+    mood, confidence = classifier.classify(features)
+    if mood is not None:
+        await db.execute(
+            "UPDATE media SET mood=?, mood_confidence=? WHERE id=?",
+            (mood, confidence, media_id),
+        )
+    await db.commit()
 
 
 async def execute_download(download_id: int) -> None:
@@ -219,7 +255,7 @@ async def execute_download(download_id: int) -> None:
                 ) as cur:
                     existing = await cur.fetchone()
                 if existing is None:
-                    await db.execute(
+                    async with db.execute(
                         _INSERT_MEDIA,
                         (
                             result["title"],
@@ -230,7 +266,13 @@ async def execute_download(download_id: int) -> None:
                             url,
                             download_id,
                         ),
-                    )
+                    ) as ins_cur:
+                        media_id = ins_cur.lastrowid
+                    assert media_id is not None
+                    try:
+                        await _run_inference(db, media_id, result["file_path"])
+                    except Exception:
+                        pass
                 await db.execute(
                     "UPDATE downloads SET status='done', error_message=NULL,"
                     " updated_at=CURRENT_TIMESTAMP WHERE id=?",

@@ -2,7 +2,7 @@
 title: GitHub Issues — All Slices
 type: progress
 related: [planning.md]
-updated: 2026-05-08
+updated: 2026-05-18
 ---
 
 # GitHub Issues
@@ -22,7 +22,7 @@ Update the Status column and `updated` date whenever an issue is closed.
 | [#5](https://github.com/DAdam97/mediasync/issues/5) | Web UI: link submission + download queue view | AFK | done | #3 |
 | [#6](https://github.com/DAdam97/mediasync/issues/6) | Library API + web UI: browse, filter by mood, search, delete | AFK | done | #3 |
 | [#7](https://github.com/DAdam97/mediasync/issues/7) | ML pipeline: dataset collection + Colab training + TF Lite deployment | HITL | done | #3 |
-| [#8](https://github.com/DAdam97/mediasync/issues/8) | Mood classifier inference on Pi (async, post-download) | AFK | open | #7 |
+| [#8](https://github.com/DAdam97/mediasync/issues/8) | Mood classifier inference on Pi (async, post-download) | AFK | done | #7 |
 | [#9](https://github.com/DAdam97/mediasync/issues/9) | Playlist generation: mood-based .m3u files + API | AFK | open | #8 |
 | [#10](https://github.com/DAdam97/mediasync/issues/10) | Web UI: playlist manager + server stats view | AFK | open | #9 |
 | [#11](https://github.com/DAdam97/mediasync/issues/11) | Syncthing setup: Pi send-only + phone receive-only WiFi sync | HITL | open | #1 |
@@ -174,12 +174,12 @@ Update the Status column and `updated` date whenever an issue is closed.
 **What to build:** After a track finishes downloading, the Pi automatically extracts audio features and runs TF Lite mood inference. Result stored in DB and track tagged with mood label. End-to-end: download completes → `GET /api/library/{id}` returns `mood: "energetic"`.
 
 **Acceptance criteria:**
-- [ ] `services/feature_extractor.py` extracts feature vector from a 30-second clip (starting at 30s)
-- [ ] Feature vector stored as JSON in `audio_features` table
-- [ ] `services/classifier.py` loads `mood_classifier.tflite` and runs inference
-- [ ] `media.mood` and `media.mood_confidence` updated after inference
-- [ ] Inference runs asynchronously — does not block the download status response
-- [ ] If model file is missing, inference is skipped gracefully (mood stays null)
+- [x] `services/feature_extractor.py` extracts feature vector from a 30-second clip (starting at 30s)
+- [x] Feature vector stored as JSON in `audio_features` table
+- [x] `services/classifier.py` loads `mood_classifier.tflite` and runs inference
+- [x] `media.mood` and `media.mood_confidence` updated after inference
+- [x] Inference runs asynchronously — does not block the download status response
+- [x] If model file is missing, inference is skipped gracefully (mood stays null)
 
 ---
 

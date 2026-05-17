@@ -1,5 +1,19 @@
 # Log
 
+## [2026-05-18] feat | #8 mood inference wired — classifier.py + execute_download integration
+
+**New files:**
+- `backend/services/classifier.py` — `classify(features) -> (mood | None, confidence | None)`. Loads `mood_classifier.tflite` + `scaler_params.json` from `MODELS_PATH` (default `/app/models`). StandardScaler normalization → TF Lite `_infer` → argmax → label. Label map: `energetic=0, chill=1, intense=2` (3-class, sad removed). Missing model → `(None, None)`.
+- `backend/tests/test_classifier.py` — 3 unit tests (energetic, missing model, chill).
+- `backend/tests/test_inference.py` — 3 integration tests for `execute_download` behavior.
+
+**Modified files:**
+- `backend/config.py` — added `models_path()` (`MODELS_PATH` env var, default `/app/models`).
+- `backend/services/download_queue.py` — added `_run_inference(db, media_id, file_path)`: calls `asyncio.to_thread(extract_features, path)` (CPU-bound, runs in thread), inserts `audio_features` row, calls `classify`, updates `media.mood` + `media.mood_confidence`. Called from `execute_download` for new media records only; any exception is silently caught so the download always completes as `done`.
+- `ml/mood_classification.ipynb` — updated to match actual training: `sad` filtered out, `LABEL_MAP = {energetic:0, chill:1, intense:2}`, `Dense(3)` output. Drive path updated to `mediasync_dataset/`.
+
+82/82 tests green. Ruff clean. Issue #8 closed.
+
 ## [2026-05-17] progress | #7 complete — mood_classifier.tflite deployed and verified on Pi
 
 140 tracks labeled via Library UI (sad=1 removed → 3 classes: energetic=53, chill=48, intense=28). Feature extraction via `docker compose exec api python3 /tmp/extract_features.py` (130 rows). Colab training: Keras Sequential 128→64→3 softmax, 50 epochs, 61% test accuracy on 26 samples. `numpy<2` pinned in requirements.txt to fix tflite-runtime NumPy 2.x incompatibility. `mood_classifier.tflite` + `scaler_params.json` deployed to `backend/models/`. Smoke test OK — output shape [1 3]. Issue #7 closed.

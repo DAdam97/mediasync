@@ -37,9 +37,7 @@ async def fetch_related_urls(url: str, limit: int) -> list[str]:
     return await _run_yt_dlp_flat(mix_url, limit)
 
 
-def select_best_candidate(
-    candidates: list[dict], blacklist_id: str
-) -> dict | None:
+def select_best_candidate(candidates: list[dict], blacklist_id: str) -> dict | None:
     suitable = []
     for c in candidates:
         if blacklist_id and c.get("id", "") == blacklist_id:
