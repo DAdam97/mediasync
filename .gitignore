@@ -44,5 +44,14 @@ Thumbs.db
 .dockerignore
 docker-compose.override.yml
 
+# Claude Code / agent internals
+.agents/
+.claude/
+skills-lock.json
+
+# Training data exports (root level)
+dataset.csv
+dataset_labels.csv
+
 # Logs
 *.log
