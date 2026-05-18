@@ -136,7 +136,8 @@ async def _enqueue_expanded(
     fetch_fn: Callable[[str, int], Coroutine[Any, Any, list[str]]],
 ) -> list[DownloadRecord]:
     all_urls = await fetch_fn(url, limit)
-    urls = [u for u in all_urls if _YOUTUBE_PATTERN.search(u)][:limit]
+    filtered = [u for u in all_urls if _YOUTUBE_PATTERN.search(u)]
+    urls = filtered if limit == 0 else filtered[:limit]
     records: list[DownloadRecord] = []
     for track_url in urls:
         async with db.execute(
