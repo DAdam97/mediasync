@@ -10,24 +10,22 @@ _REJECT_WORDS = {"sped up", "slowed", "nightcore", "1 hour", "loop", "karaoke"}
 
 
 async def _run_yt_dlp_flat(url: str, limit: int) -> list[str]:
+    args = ["yt-dlp", "--flat-playlist", "--print", "url", "--no-warnings"]
+    if limit > 0:
+        args += ["--playlist-end", str(limit)]
+    args.append(url)
     proc = await asyncio.create_subprocess_exec(
-        "yt-dlp",
-        "--flat-playlist",
-        "--print",
-        "url",
-        "--playlist-end",
-        str(limit),
-        "--no-warnings",
-        url,
+        *args,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
     stdout, _ = await proc.communicate()
-    return [line for line in stdout.decode().splitlines() if line.strip()][:limit]
+    lines = [line for line in stdout.decode().splitlines() if line.strip()]
+    return lines[:limit] if limit > 0 else lines
 
 
 async def fetch_playlist_urls(url: str, limit: int) -> list[str]:
-    return await _run_yt_dlp_flat(url, limit)
+    return await _run_yt_dlp_flat(url, 0)
 
 
 async def fetch_related_urls(url: str, limit: int) -> list[str]:
